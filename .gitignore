@@ -1,0 +1,7 @@
+/src/nn/logs/*
+!src/nn/logs/.gitkeep
+
+/datasets/*
+!datasets/.gitkeep
+
+**/__pycache__/
