@@ -2,8 +2,7 @@ import shutil
 from typing import Literal
 from pathlib import Path
 
-from src.dataset_tools.renamer import add_unique_suffix
-from src.dataset_tools.renamer import add_dirname_prefix
+from src.dataset_tools.renamer import add_unique_suffix, add_dirname_prefix
 
 
 def collect_raw_data(

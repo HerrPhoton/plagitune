@@ -10,12 +10,9 @@ from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
 from src.data.pipelines.melody_pipeline import MelodyPipeline
 from src.data.pipelines.configs.slice_config import SliceConfig
-from src.data.pipelines.configs.melody_config import (
-    MelodyConfig,)
-from src.data.pipelines.configs.pipeline_config import (
-    PipelineConfig,)
-from src.data.pipelines.configs.spectrogram_config import (
-    SpectrogramConfig,)
+from src.data.pipelines.configs.melody_config import MelodyConfig
+from src.data.pipelines.configs.pipeline_config import PipelineConfig
+from src.data.pipelines.configs.spectrogram_config import SpectrogramConfig
 
 
 class MelodyDataset(Dataset):

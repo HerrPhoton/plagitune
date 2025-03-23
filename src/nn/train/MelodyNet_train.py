@@ -9,13 +9,9 @@ import lightning as L
 from torch import Tensor
 from torch.optim import SGD, Adam, AdamW
 from torchmetrics import MeanSquaredError
-from torch.optim.lr_scheduler import OneCycleLR
-from torch.optim.lr_scheduler import CosineAnnealingLR
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import OneCycleLR, CosineAnnealingLR, ReduceLROnPlateau
 from lightning.pytorch.loggers import TensorBoardLogger
-from lightning.pytorch.callbacks import EarlyStopping
-from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning.pytorch.callbacks import LearningRateMonitor
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor
 
 from src.nn.models.MelodyNet import MelodyNet
 from src.data.loaders.melody_loader import get_dataloader

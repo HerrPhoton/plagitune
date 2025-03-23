@@ -3,11 +3,9 @@ import torch.nn as nn
 import torchvision.models as models
 from torch import Tensor
 
-from src.data.labels.melody_label import MelodyLabel
 from src.data.utils.label_normalizer import LabelNormalizer
 from src.data.pipelines.configs.slice_config import SliceConfig
-from src.data.pipelines.configs.pipeline_config import (
-    PipelineConfig,)
+from src.data.pipelines.configs.pipeline_config import PipelineConfig
 
 
 class MelodyNet(nn.Module):
@@ -61,10 +59,7 @@ class MelodyNet(nn.Module):
         self.resnet = nn.Sequential(*list(self.resnet.children())[:-2])
 
         self.adapter = nn.Sequential(
-            nn.AdaptiveAvgPool2d((1, None)),
-            # nn.Conv2d(2048, hidden_size, kernel_size=1),
-            # nn.ReLU(),
-            # nn.Dropout(dropout)
+            nn.AdaptiveAvgPool2d((1, None))
         )
 
         self.lstm = nn.LSTM(
@@ -133,18 +128,9 @@ class MelodyNet(nn.Module):
         return offsets, durations, seq_len
 
     def predict(self, x: Tensor) -> tuple[Tensor, ...]:
+
         offsets, durations, seq_len = self.forward(x)
-
-        label = MelodyLabel(
-            offsets=offsets,
-            durations=durations,
-            seq_len=seq_len
-        )
-        label = self.label_normalizer.inverse_transform(label)
-
-        offsets = label.offsets
-        durations = label.durations
-        seq_len = label.seq_len
+        offsets, durations, seq_len = self.label_normalizer.inverse_transform(offsets, durations, seq_len)
 
         seq_lengths = seq_len.squeeze(-1).round().long()
 

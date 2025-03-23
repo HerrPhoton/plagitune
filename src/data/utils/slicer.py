@@ -6,8 +6,7 @@ from src.data.structures.note import Note
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
 from src.data.pipelines.configs.slice_config import SliceConfig
-from src.data.pipelines.configs.spectrogram_config import (
-    SpectrogramConfig,)
+from src.data.pipelines.configs.spectrogram_config import SpectrogramConfig
 
 
 class Slicer:

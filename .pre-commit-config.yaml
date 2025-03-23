@@ -22,7 +22,7 @@ repos:
             "--py=310",
             "--length-sort",
             "--profile=black",
-            "--line-length=64",
+            "--line-length=128",
             "--multi-line=VERTICAL_PREFIX_FROM_MODULE_IMPORT"
           ]
 

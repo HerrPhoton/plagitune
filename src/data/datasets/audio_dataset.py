@@ -8,10 +8,8 @@ from src.data.utils.slicer import Slicer
 from src.data.structures.audio import Audio
 from src.data.pipelines.audio_pipeline import AudioPipeline
 from src.data.pipelines.configs.slice_config import SliceConfig
-from src.data.pipelines.configs.pipeline_config import (
-    PipelineConfig,)
-from src.data.pipelines.configs.spectrogram_config import (
-    SpectrogramConfig,)
+from src.data.pipelines.configs.pipeline_config import PipelineConfig
+from src.data.pipelines.configs.spectrogram_config import SpectrogramConfig
 
 
 class AudioDataset(Dataset):

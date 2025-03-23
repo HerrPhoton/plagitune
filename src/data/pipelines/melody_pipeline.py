@@ -7,12 +7,9 @@ from src.data.labels.melody_label import MelodyLabel
 from src.data.structures.spectrogram import Spectrogram
 from src.data.utils.label_normalizer import LabelNormalizer
 from src.data.pipelines.audio_pipeline import AudioPipeline
-from src.data.pipelines.configs.melody_config import (
-    MelodyConfig,)
-from src.data.pipelines.configs.pipeline_config import (
-    PipelineConfig,)
-from src.data.pipelines.configs.spectrogram_config import (
-    SpectrogramConfig,)
+from src.data.pipelines.configs.melody_config import MelodyConfig
+from src.data.pipelines.configs.pipeline_config import PipelineConfig
+from src.data.pipelines.configs.spectrogram_config import SpectrogramConfig
 
 
 class MelodyPipeline(torch.nn.Module):
