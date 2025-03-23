@@ -49,9 +49,9 @@ class Audio:
         plt.style.use('dark_background')
 
         fig, axes = plt.subplots(
-            self.num_channels, 
-            1, 
-            figsize=(style.figsize[0], style.figsize[1] * self.num_channels), 
+            self.num_channels,
+            1,
+            figsize=(style.figsize[0], style.figsize[1] * self.num_channels),
             facecolor=style.background_color
         )
 
@@ -63,18 +63,18 @@ class Audio:
         for channel, ax in enumerate(axes):
 
             ax.plot(
-                time_axis, 
-                self.waveform[channel].numpy(), 
-                color=style.color, 
-                alpha=style.alpha, 
+                time_axis,
+                self.waveform[channel].numpy(),
+                color=style.color,
+                alpha=style.alpha,
                 linewidth=style.linewidth,
             )
 
             if style.grid_visible:
                 ax.grid(
-                    True, 
-                    linestyle=style.grid_linestyle, 
-                    alpha=style.grid_alpha, 
+                    True,
+                    linestyle=style.grid_linestyle,
+                    alpha=style.grid_alpha,
                     color=style.grid_color
                 )
 
@@ -96,8 +96,8 @@ class Audio:
 
         if style.title:
             fig.suptitle(
-                style.title, 
-                color=style.text_color, 
+                style.title,
+                color=style.text_color,
                 fontsize=style.title_fontsize
             )
 

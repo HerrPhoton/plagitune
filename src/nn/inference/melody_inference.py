@@ -1,24 +1,24 @@
-from typing import Tuple, List
 from pathlib import Path
 
-import librosa
 import torch
 from torch import Tensor
 
+from src.data.utils.slicer import Slicer
+from src.data.structures.note import Note
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
-from src.data.structures.note import Note
-from src.data.pipelines.configs.slice_config import SliceConfig
-from src.data.pipelines.configs.melody_config import MelodyConfig
-from src.data.pipelines.configs.spectrogram_config import SpectrogramConfig
-from src.data.pipelines.configs.pipeline_config import PipelineConfig
-from src.data.utils.slicer import Slicer
 from src.nn.train.MelodyNet_train import PLMelodyNet
-from src.data.pipelines.audio_pipeline import AudioPipeline
-from src.data.utils.label_normalizer import LabelNormalizer
-from src.data.labels.melody_label import MelodyLabel
-from src.data.datasets.audio_dataset import AudioDataset
 from src.data.loaders.audio_loader import get_dataloader
+from src.data.datasets.audio_dataset import AudioDataset
+from src.data.utils.label_normalizer import LabelNormalizer
+from src.data.pipelines.audio_pipeline import AudioPipeline
+from src.data.pipelines.configs.slice_config import SliceConfig
+from src.data.pipelines.configs.melody_config import (
+    MelodyConfig,)
+from src.data.pipelines.configs.pipeline_config import (
+    PipelineConfig,)
+from src.data.pipelines.configs.spectrogram_config import (
+    SpectrogramConfig,)
 
 
 class MelodyInference:
@@ -55,13 +55,13 @@ class MelodyInference:
         )
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        
+
         self.model = PLMelodyNet.load_from_checkpoint(model_path)
         self.model.to(self.device)
         self.model.eval()
-        
+
         self.slicer = Slicer(
-            slice_config=self.slice_config, 
+            slice_config=self.slice_config,
             spectrogram_config=self.spectrogram_config
         )
         self.audio_pipeline = AudioPipeline(
@@ -79,7 +79,7 @@ class MelodyInference:
 
     def extract_melody(self, audio: str | Path | Audio, tempo: int) -> Melody:
         """Извлечение мелодии из аудиофайла.
-        
+
         :param str | Path | Audio audio: Аудиофайл или путь к аудиофайлу
         :return Melody: Извлеченная мелодия
         """
@@ -88,46 +88,46 @@ class MelodyInference:
 
         elif isinstance(audio, Audio):
             dataset = AudioDataset([audio])
-        
+
         dataloader = get_dataloader(dataset)
-        
+
         all_offsets = []
         all_durations = []
-        
+
         with torch.no_grad():
             for i, spectrograms in enumerate(dataloader):
                 spectrograms = spectrograms.to(self.device)
                 offsets, durations = self.model.predict_step(spectrograms, i)
-                
+
                 for j in range(offsets.size(0)):
                     mask = (offsets[j] != SliceConfig.label_pad_value)
                     all_offsets.append(offsets[j][mask])
                     all_durations.append(durations[j][mask])
-        
+
         merged_offsets = torch.cat(all_offsets, dim=0)
         merged_durations = torch.cat(all_durations, dim=0)
-        
+
         merged_predictions = (merged_offsets, merged_durations)
         return self._predictions_to_melody(merged_predictions, tempo)
-    
-    def _predictions_to_melody(self, predictions: Tuple[Tensor, ...], tempo: int) -> Melody:
+
+    def _predictions_to_melody(self, predictions: tuple[Tensor, ...], tempo: int) -> Melody:
         """Преобразование предсказаний в объект Melody.
-        
+
         :param Tuple[Tensor, ...] predictions: Кортеж предсказаний (частоты, классы, смещения, длительности)
         :return Melody: Объект Melody
         """
         offsets, durations = predictions
-        
+
         print(offsets)
         print(durations)
-        
+
         offsets = offsets.cpu().numpy()
         durations = durations.cpu().numpy()
-        
+
         #min_freq = freqs[freqs >= 20].min()
         # min_freq = 440
         # min_midi = Note(float(min_freq), 1).midi_number
-        
+
         notes = []
         for i in range(len(offsets)):
 
@@ -136,17 +136,17 @@ class MelodyInference:
 
             note = Note(offset, duration)
             notes.append(note)
-            
+
             # offset = int(round(offsets[i]))
             # duration = float(durations[i])
-            
+
             # if offset == 0:
             #     note = Note(None, duration)
 
             # else:
             #     note_midi = min_midi + offset
             #     note = Note(librosa.midi_to_hz(note_midi), duration)
-            
+
             # notes.append(note)
 
         return Melody(notes, tempo=tempo)

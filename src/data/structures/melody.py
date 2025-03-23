@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List
 
 import numpy as np
 import soundfile as sf
@@ -13,7 +12,7 @@ from src.core.styles.melody_style import MelodyStyle
 
 class Melody:
 
-    def __init__(self, notes: List[Note], tempo: int):
+    def __init__(self, notes: list[Note], tempo: int):
         self._notes = notes
         self._tempo = tempo
 
@@ -38,7 +37,7 @@ class Melody:
         if not midi_numbers:
             min_midi = 60
             max_midi = 71
-            
+
         else:
             min_midi = float('inf')
             max_midi = float('-inf')
@@ -66,10 +65,10 @@ class Melody:
 
         for i in range(len(pitches)):
             plt.axhline(
-                y=i, 
-                color=style.lines_color, 
-                linestyle=style.lines_linestyle, 
-                linewidth=style.lines_linewidth, 
+                y=i,
+                color=style.lines_color,
+                linestyle=style.lines_linestyle,
+                linewidth=style.lines_linewidth,
                 alpha=style.lines_alpha
             )
 
@@ -190,4 +189,3 @@ class Melody:
         """
         beat_duration = 60 / self._tempo
         return duration / beat_duration
-

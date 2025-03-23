@@ -16,4 +16,3 @@ class SpectrogramStyle(BaseStyle):
     x_label: str | None = 'Время, с'
     y_label: str | None = 'Частота, Гц'
     color_bar_label: str | None = 'Амплитуда, дБ'
-    

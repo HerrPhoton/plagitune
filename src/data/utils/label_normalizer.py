@@ -1,5 +1,3 @@
-from typing import List
-
 import torch
 
 from src.data.labels.melody_label import MelodyLabel
@@ -8,8 +6,8 @@ from src.data.labels.melody_label import MelodyLabel
 class LabelNormalizer:
 
     def __init__(
-        self, 
-        f_min: float | None = None, 
+        self,
+        f_min: float | None = None,
         f_max: float | None = None,
         offset_min: float | None = None,
         offset_max: float | None = None,
@@ -25,7 +23,7 @@ class LabelNormalizer:
         :param offset_min: Минимальное смещение (отсноительное нижней ноты).
         :param offset_max: Максимальное смещение (отсноительное нижней ноты).
         :param dur_min: Минимальная длительность ноты (в долях).
-        :param dur_max: Максимальная длительность ноты (в долях).        
+        :param dur_max: Максимальная длительность ноты (в долях).
         """
         self.f_min = f_min
         self.f_max = f_max
@@ -37,8 +35,8 @@ class LabelNormalizer:
         self.seq_len_max = seq_len_max
 
         self.eps = 1e-8
-    
-    def fit(self, labels: List[MelodyLabel]) -> None:
+
+    def fit(self, labels: list[MelodyLabel]) -> None:
         """Находит минимальные и максимальные значения для нормализации.
 
         :param List[MelodyLabel] labels: Список меток мелодий.
@@ -47,13 +45,13 @@ class LabelNormalizer:
         all_offsets = torch.cat([label.offsets for label in labels])
         all_durations = torch.cat([label.durations for label in labels])
         all_seq_lens = torch.tensor([len(label.offsets) for label in labels])
-        
+
         self.seq_len_min = all_seq_lens.min().item()
         self.seq_len_max = all_seq_lens.max().item()
 
         # self.f_min = all_freqs.min().item()
         # self.f_max = all_freqs.max().item()
-        
+
         self.offset_min = all_offsets.min().item()
         self.offset_max = all_offsets.max().item()
 
@@ -91,7 +89,3 @@ class LabelNormalizer:
             durations=durations,
             seq_len=seq_len
         )
-
-
-
-

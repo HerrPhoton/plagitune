@@ -1,15 +1,13 @@
-from typing import List
-
 import torch
-from torch.utils.data import DataLoader
 from torch import Tensor
+from torch.utils.data import DataLoader
 
 from src.data.datasets.audio_dataset import AudioDataset
 
 
-def collate_fn(batch: List[List[Tensor]]) -> Tensor:
+def collate_fn(batch: list[list[Tensor]]) -> Tensor:
     """Собирает батч из нарезанных семплов.
-    
+
     :param List[List[Tensor]] batch: Список списков спектрограмм для каждого аудио
     :return Tensor: Батч подготовленных данных
     """
@@ -17,13 +15,13 @@ def collate_fn(batch: List[List[Tensor]]) -> Tensor:
 
 
 def get_dataloader(
-    dataset: AudioDataset, 
+    dataset: AudioDataset,
     batch_size: int = 32,
     shuffle: bool = True,
     num_workers: int = 4,
     persistent_workers: bool = False,
 ) -> DataLoader:
-    
+
     return DataLoader(
         dataset,
         batch_size=batch_size,

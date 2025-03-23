@@ -1,26 +1,26 @@
 from pathlib import Path
-from typing import List, Tuple
-from copy import deepcopy
 
-import torch
+from tqdm import tqdm
 from torch import Tensor
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
-from src.data.structures.melody import Melody
-from src.data.structures.audio import Audio
+from src.data.utils.slicer import Slicer
 from src.data.structures.note import Note
+from src.data.structures.audio import Audio
+from src.data.structures.melody import Melody
 from src.data.pipelines.melody_pipeline import MelodyPipeline
 from src.data.pipelines.configs.slice_config import SliceConfig
-from src.data.pipelines.configs.melody_config import MelodyConfig
-from src.data.pipelines.configs.spectrogram_config import SpectrogramConfig
-from src.data.pipelines.configs.pipeline_config import PipelineConfig
-from src.data.utils.slicer import Slicer
+from src.data.pipelines.configs.melody_config import (
+    MelodyConfig,)
+from src.data.pipelines.configs.pipeline_config import (
+    PipelineConfig,)
+from src.data.pipelines.configs.spectrogram_config import (
+    SpectrogramConfig,)
 
 
 class MelodyDataset(Dataset):
 
-    def __init__(self, audio: List[Audio], melody: List[Melody], **kwargs):
+    def __init__(self, audio: list[Audio], melody: list[Melody], **kwargs):
         """
         :param List[Audio] audio: Аудиофайлы.
         :param List[Melody] melody: Мелодии.
@@ -61,7 +61,7 @@ class MelodyDataset(Dataset):
             seq_len_min=kwargs.get('seq_len_min', PipelineConfig.seq_len_min),
             seq_len_max=kwargs.get('seq_len_max', PipelineConfig.seq_len_max),
         )
-        
+
         self.slicer = Slicer(
             slice_config=self.slice_config,
             spectrogram_config=self.spectrogram_config,
@@ -71,17 +71,17 @@ class MelodyDataset(Dataset):
             spectrogram_config=self.spectrogram_config,
             pipeline_config=self.pipeline_config
         )
-        
+
         self.sliced_audio, self.sliced_melody = self.slice_data(self.audio, self.melody)
 
-    def __getitem__(self, idx: int) -> Tuple[Tensor, ...]:
+    def __getitem__(self, idx: int) -> tuple[Tensor, ...]:
         """Возвращает элемент датасета.
 
         :param int idx: Индекс элемента
-        :return Tuple[Tensor, ...]: 
-            спектрограмма, 
+        :return Tuple[Tensor, ...]:
+            спектрограмма,
             частоты нот,
-            классы нот, 
+            классы нот,
             относительные смещения нот,
             маска нот,
             длительности нот
@@ -114,7 +114,7 @@ class MelodyDataset(Dataset):
 
         return cls(audio, melody, **kwargs)
 
-    def slice_data(self, audio: List[Audio], melody: List[Melody]) -> Tuple[List[Audio], List[Melody]]:
+    def slice_data(self, audio: list[Audio], melody: list[Melody]) -> tuple[list[Audio], list[Melody]]:
         """Нарезает аудиофайлы и мелодии на окна фиксированного размера.
         Выполняет паддинг там, где это необходимо, добавляя паузы в мелодию.
 
@@ -126,7 +126,7 @@ class MelodyDataset(Dataset):
         sliced_melody = []
 
         for a, m in tqdm(zip(audio, melody), total=len(audio), desc="Slicing audio and melody"):
-            
+
             a.trim_silence()
 
             if a.duration != m.duration:
@@ -138,32 +138,32 @@ class MelodyDataset(Dataset):
                 else:
                     new_notes = []
                     current_time = 0.0
-                    
+
                     for note in m._notes:
                         note_duration = m._beats_to_seconds(note._duration)
                         note_end = current_time + note_duration
-                        
+
                         if note_end <= a.duration:
                             new_notes.append(note)
 
                         elif current_time < a.duration:
                             partial_duration = a.duration - current_time
                             partial_beats = m._seconds_to_beats(partial_duration)
-                            
+
                             if note.is_rest:
                                 new_note = Note(None, partial_beats)
 
                             else:
                                 new_note = Note(note.note_name, partial_beats)
-                                
+
                             new_notes.append(new_note)
                             break
 
                         else:
                             break
-                            
+
                         current_time = note_end
-                    
+
                     m._notes = new_notes
 
             audio_windows = self.slicer.slice_audio(a)
@@ -171,8 +171,5 @@ class MelodyDataset(Dataset):
 
             sliced_audio.extend(audio_windows)
             sliced_melody.extend(melody_windows)
-        
+
         return sliced_audio, sliced_melody
-
-    
-

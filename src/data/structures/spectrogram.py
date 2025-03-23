@@ -1,16 +1,14 @@
-import torch
-import numpy as np
-import librosa
 from copy import deepcopy
-import librosa
 from pathlib import Path
 
+import numpy as np
+import torch
+import librosa
 import torchaudio
 import matplotlib.pyplot as plt
 
-from src.core.styles.spectrogram_style import SpectrogramStyle
 from src.data.structures.audio import Audio
-from src.data.structures.melody import Melody
+from src.core.styles.spectrogram_style import SpectrogramStyle
 
 
 class Spectrogram:
@@ -83,21 +81,21 @@ class Spectrogram:
 
         self.spectrogram = transform(self.waveform)
         self.n_frames = self.spectrogram.shape[2]
-            
+
     def apply_threshold(self, threshold: float) -> 'Spectrogram':
         """Применяет пороговую фильтрацию.
-        
+
         :param float threshold: Пороговое значение
         :return Spectrogram: Экземпляр Spectrogram с отфильтрованными значениями
         """
         filtered_spec = deepcopy(self)
         filtered_spec.spectrogram[filtered_spec.spectrogram < threshold] = 0
-        
+
         return filtered_spec
 
     def visualize(self, **style_kwargs) -> None:
         """Визуализирует спектрограмму.
-        
+
         :param style_kwargs: Дополнительные параметры визуализации
         """
         style = SpectrogramStyle(**style_kwargs)
@@ -113,14 +111,14 @@ class Spectrogram:
         )
 
         img = librosa.display.specshow(
-            data=spec_db, 
-            sr=self.sample_rate, 
+            data=spec_db,
+            sr=self.sample_rate,
             x_axis='time',
-            y_axis='mel', 
+            y_axis='mel',
             n_fft=self.n_fft,
             hop_length=self.hop_length,
             fmin=self.f_min,
-            fmax=self.f_max, 
+            fmax=self.f_max,
             ax=ax,
         )
 
@@ -131,17 +129,17 @@ class Spectrogram:
         ax.set_ylim(style.ylim)
 
         ax.set_title(
-            style.title, 
-            color=style.text_color, 
+            style.title,
+            color=style.text_color,
             pad=style.title_pad,
             fontsize=style.title_fontsize
         )
 
         if style.grid_visible:
             ax.grid(
-                style.grid_visible, 
-                linestyle=style.grid_linestyle, 
-                alpha=style.grid_alpha, 
+                style.grid_visible,
+                linestyle=style.grid_linestyle,
+                alpha=style.grid_alpha,
                 color=style.grid_color
             )
 
@@ -161,7 +159,7 @@ class Spectrogram:
     @classmethod
     def from_audio(
         cls,
-        audio: str | Path | Audio, 
+        audio: str | Path | Audio,
         n_fft: int = 2048,
         win_length: int | None = None,
         hop_length: int | None = None,
@@ -171,10 +169,10 @@ class Spectrogram:
         window_fn: torch.nn.Module = torch.hann_window,
         power: float = 2.0,
         center: bool = True,
-        pad_mode: str = 'reflect',       
+        pad_mode: str = 'reflect',
     ) -> 'Spectrogram':
         """Создает спектрограмму из аудиофайла.
-        
+
         :param torch.Tensor waveform: Исходный аудиосигнал
         :param int sample_rate: Частота дискретизации аудио
         :param int n_fft: Размер FFT

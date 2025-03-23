@@ -4,9 +4,12 @@ from torchaudio.transforms import AmplitudeToDB
 
 from src.data.structures.audio import Audio
 from src.data.structures.spectrogram import Spectrogram
-from src.data.pipelines.configs.spectrogram_config import SpectrogramConfig
-from src.data.pipelines.configs.pipeline_config import PipelineConfig
-from src.data.utils.spectrogram_normalizer import SpectrogramNormalizer
+from src.data.utils.spectrogram_normalizer import (
+    SpectrogramNormalizer,)
+from src.data.pipelines.configs.pipeline_config import (
+    PipelineConfig,)
+from src.data.pipelines.configs.spectrogram_config import (
+    SpectrogramConfig,)
 
 
 class AudioPipeline(torch.nn.Module):
@@ -32,7 +35,7 @@ class AudioPipeline(torch.nn.Module):
         spectrogram = self.spec_normalizer.transform(spectrogram)
 
         return spectrogram
-    
+
     def _preprocess_audio(self, audio: Audio) -> Audio:
         """Предобрабатывает аудио.
 
@@ -56,4 +59,4 @@ class AudioPipeline(torch.nn.Module):
             n_fft=self.spectrogram_config.n_fft,
             f_min=self.spectrogram_config.f_min,
             f_max=self.spectrogram_config.f_max
-        )  
+        )

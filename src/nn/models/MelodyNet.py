@@ -1,23 +1,22 @@
-from typing import Tuple
-
 import torch
 import torch.nn as nn
 import torchvision.models as models
 from torch import Tensor
 
-from src.data.pipelines.configs.slice_config import SliceConfig
-from src.data.pipelines.configs.pipeline_config import PipelineConfig
-from src.data.utils.label_normalizer import LabelNormalizer
 from src.data.labels.melody_label import MelodyLabel
+from src.data.utils.label_normalizer import LabelNormalizer
+from src.data.pipelines.configs.slice_config import SliceConfig
+from src.data.pipelines.configs.pipeline_config import (
+    PipelineConfig,)
 
 
 class MelodyNet(nn.Module):
 
     def __init__(
-        self, 
-        hidden_size: int = 512, 
-        num_lstm_layers: int = 2, 
-        dropout: float = 0.3, 
+        self,
+        hidden_size: int = 512,
+        num_lstm_layers: int = 2,
+        dropout: float = 0.3,
         bidirectional: bool = True
     ):
         """Модель для транскрибации мелодии из спектрограммы.
@@ -39,18 +38,18 @@ class MelodyNet(nn.Module):
             dur_min=PipelineConfig.dur_min,
             dur_max=PipelineConfig.dur_max,
             seq_len_min=PipelineConfig.seq_len_min,
-            seq_len_max=PipelineConfig.seq_len_max,           
+            seq_len_max=PipelineConfig.seq_len_max,
         )
 
         self.resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
 
         original_conv = self.resnet.conv1
         self.resnet.conv1 = nn.Conv2d(
-            1, 
-            original_conv.out_channels, 
-            kernel_size=original_conv.kernel_size, 
-            stride=original_conv.stride, 
-            padding=original_conv.padding, 
+            1,
+            original_conv.out_channels,
+            kernel_size=original_conv.kernel_size,
+            stride=original_conv.stride,
+            padding=original_conv.padding,
             bias=False if original_conv.bias is None else True
         )
 
@@ -80,41 +79,41 @@ class MelodyNet(nn.Module):
         lstm_output_size = hidden_size * 2 if bidirectional else hidden_size
 
         # self.frequency_head = nn.Sequential(
-        #     #nn.Linear(hidden_size, hidden_size), 
-        #     nn.ReLU(), 
-        #     nn.Dropout(dropout), 
+        #     #nn.Linear(hidden_size, hidden_size),
+        #     nn.ReLU(),
+        #     nn.Dropout(dropout),
         #     nn.Linear(hidden_size, 1)
         # )
 
         # self.classes_head = nn.Sequential(
-        #     #nn.Linear(hidden_size, hidden_size), 
-        #     nn.ReLU(), 
-        #     nn.Dropout(dropout), 
+        #     #nn.Linear(hidden_size, hidden_size),
+        #     nn.ReLU(),
+        #     nn.Dropout(dropout),
         #     nn.Linear(hidden_size, 13)
         # )
 
         self.offset_head = nn.Sequential(
-            nn.Linear(lstm_output_size, hidden_size), 
-            nn.ReLU(), 
-            nn.Dropout(dropout), 
+            nn.Linear(lstm_output_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(hidden_size, self.slice_size)
         )
 
         self.duration_head = nn.Sequential(
-            nn.Linear(lstm_output_size, hidden_size), 
-            nn.ReLU(), 
-            nn.Dropout(dropout), 
+            nn.Linear(lstm_output_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(hidden_size, self.slice_size)
         )
 
         self.seq_len_head = nn.Sequential(
-            nn.Linear(lstm_output_size, hidden_size), 
-            nn.ReLU(), 
-            nn.Dropout(dropout), 
+            nn.Linear(lstm_output_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(hidden_size, 1)
         )
 
-    def forward(self, x: Tensor) -> Tuple[Tensor, ...]:
+    def forward(self, x: Tensor) -> tuple[Tensor, ...]:
 
         features = self.resnet(x)
 
@@ -133,9 +132,9 @@ class MelodyNet(nn.Module):
 
         return offsets, durations, seq_len
 
-    def predict(self, x: Tensor) -> Tuple[Tensor, ...]:
+    def predict(self, x: Tensor) -> tuple[Tensor, ...]:
         offsets, durations, seq_len = self.forward(x)
-        
+
         label = MelodyLabel(
             offsets=offsets,
             durations=durations,
@@ -148,26 +147,24 @@ class MelodyNet(nn.Module):
         seq_len = label.seq_len
 
         seq_lengths = seq_len.squeeze(-1).round().long()
-        
+
         batch_size = offsets.size(0)
         truncated_offsets = []
         truncated_durations = []
-        
+
         for i in range(batch_size):
             length = seq_lengths[i]
             truncated_offsets.append(offsets[i, :length])
             truncated_durations.append(durations[i, :length])
-        
+
         max_len = max(len(seq) for seq in truncated_offsets)
         padded_offsets = torch.stack([
-            torch.nn.functional.pad(seq, (0, max_len - len(seq)), value=SliceConfig.label_pad_value) 
+            torch.nn.functional.pad(seq, (0, max_len - len(seq)), value=SliceConfig.label_pad_value)
             for seq in truncated_offsets
         ])
         padded_durations = torch.stack([
-            torch.nn.functional.pad(seq, (0, max_len - len(seq)), value=SliceConfig.label_pad_value) 
+            torch.nn.functional.pad(seq, (0, max_len - len(seq)), value=SliceConfig.label_pad_value)
             for seq in truncated_durations
         ])
-        
+
         return padded_offsets, padded_durations
-    
-    

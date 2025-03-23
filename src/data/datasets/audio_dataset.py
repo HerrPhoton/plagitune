@@ -1,23 +1,22 @@
 from pathlib import Path
-from typing import List, Tuple
-from copy import deepcopy
 
-import torch
+from tqdm import tqdm
 from torch import Tensor
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
+from src.data.utils.slicer import Slicer
 from src.data.structures.audio import Audio
 from src.data.pipelines.audio_pipeline import AudioPipeline
 from src.data.pipelines.configs.slice_config import SliceConfig
-from src.data.pipelines.configs.spectrogram_config import SpectrogramConfig
-from src.data.pipelines.configs.pipeline_config import PipelineConfig
-from src.data.utils.slicer import Slicer
+from src.data.pipelines.configs.pipeline_config import (
+    PipelineConfig,)
+from src.data.pipelines.configs.spectrogram_config import (
+    SpectrogramConfig,)
 
 
 class AudioDataset(Dataset):
 
-    def __init__(self, audio: List[Audio], **kwargs):
+    def __init__(self, audio: list[Audio], **kwargs):
         """
         :param List[Audio] audio: Аудиофайлы.
         :param **kwargs: Параметры пайплайна
@@ -51,7 +50,7 @@ class AudioDataset(Dataset):
             dur_min=kwargs.get('dur_min', PipelineConfig.dur_min),
             dur_max=kwargs.get('dur_max', PipelineConfig.dur_max),
         )
-        
+
         self.slicer = Slicer(
             slice_config=self.slice_config,
             spectrogram_config=self.spectrogram_config,
@@ -60,10 +59,10 @@ class AudioDataset(Dataset):
             spectrogram_config=self.spectrogram_config,
             pipeline_config=self.pipeline_config
         )
-        
+
         self.sliced_audio = self.slice_audio(self.audio)
 
-    def __getitem__(self, idx: int) -> List[Tensor]:
+    def __getitem__(self, idx: int) -> list[Tensor]:
         """Возвращает элемент датасета.
 
         :param int idx: Индекс элемента
@@ -77,7 +76,7 @@ class AudioDataset(Dataset):
     @classmethod
     def from_path(cls, audio_path: str | Path, **kwargs) -> 'AudioDataset':
         """Создает датасет из пути к аудиофайлу или директории.
-        
+
         :param str | Path audio_path: Путь к аудиофайлу или директории с аудиофайлами
         :param **kwargs: Параметры пайплайна
         :return AudioDataset: Датасет
@@ -90,11 +89,11 @@ class AudioDataset(Dataset):
 
         else:
             audio_files = [audio_path]
-            
+
         audio = [Audio(file) for file in audio_files]
         return cls(audio, **kwargs)
 
-    def slice_audio(self, audio: List[Audio]) -> List[List[Audio]]:
+    def slice_audio(self, audio: list[Audio]) -> list[list[Audio]]:
         """Нарезает аудиофайлы на окна фиксированного размера.
         Выполняет паддинг там, где это необходимо, добавляя паузы.
 
@@ -104,13 +103,10 @@ class AudioDataset(Dataset):
         sliced_audio = []
 
         for a in tqdm(audio, total=len(audio), desc="Slicing audio"):
-            
+
             a.trim_silence()
 
             audio_slices = self.slicer.slice_audio(a)
             sliced_audio.extend(audio_slices)
-        
+
         return sliced_audio
-
-    
-
