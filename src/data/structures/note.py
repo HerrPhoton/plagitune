@@ -44,7 +44,7 @@ class Note:
         if self._note is None:
             return 0
 
-        return librosa.hz_to_midi(self.freq)
+        return round(librosa.hz_to_midi(self.freq))
 
     @property
     def octave(self) -> int | None:

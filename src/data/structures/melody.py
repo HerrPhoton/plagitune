@@ -85,13 +85,15 @@ class Melody:
 
                     note_color = style.note_gradient[note_name[:-1]]
 
-                    rect = Rectangle((current_time, pitch_idx - 0.4),
-                                     duration,
-                                     0.8,
-                                     facecolor=note_color,
-                                     edgecolor=style.note_edge_color,
-                                     linewidth=style.note_linewidth,
-                                     alpha=style.note_alpha)
+                    rect = Rectangle(
+                        (current_time, pitch_idx - 0.4),
+                        duration,
+                        0.8,
+                        facecolor=note_color,
+                        edgecolor=style.note_edge_color,
+                        linewidth=style.note_linewidth,
+                        alpha=style.note_alpha
+                    )
                     ax.add_patch(rect)
 
             current_time += self._beats_to_seconds(note._duration)
@@ -111,6 +113,79 @@ class Melody:
         plt.tight_layout()
         plt.show()
 
+    def get_freqs(self) -> list[float]:
+        """Возвращает частоты нот в мелодии.
+
+        :return List[float]: Список частот нот
+        """
+        return [note.freq for note in self._notes]
+
+    def get_durations(self) -> list[float]:
+        """Возвращает длительности нот в мелодии.
+
+        :return List[float]: Список длительностей нот в долях
+        """
+        return [note._duration for note in self._notes]
+
+    def get_offsets(self) -> list[int]:
+        """Возвращает смещения нот в мелодии относительно самой низкой ноты.
+
+        :return List[float]: Список смещений нот
+        """
+        lowest_midi = float('inf')
+
+        for note in self._notes:
+            if not note.is_rest:
+                lowest_midi = min(lowest_midi, note.midi_number)
+
+        if lowest_midi == float('inf'):
+            lowest_midi = 0
+
+        return [
+            (note.midi_number - lowest_midi + 1)
+            if not note.is_rest else 0 for note in self._notes
+        ]
+
+    def get_intervals(self) -> list[float]:
+        """Возвращает интервалы между последовательными нотами в мелодии.
+
+        Для перехода с ноты на паузу возвращает float('-inf')
+        Для перехода с паузы на ноту возвращает float('inf')
+        Для последовательных пауз пропускает интервал
+
+        :return List[float]: Список интервалов между нотами
+        """
+        intervals = []
+
+        for i in range(len(self._notes) - 1):
+            current_note = self._notes[i]
+            next_note = self._notes[i + 1]
+
+            if current_note.is_rest and next_note.is_rest:
+                intervals.append(0.0)
+
+            elif current_note.is_rest and not next_note.is_rest:
+                intervals.append(float('inf'))
+
+            elif not current_note.is_rest and next_note.is_rest:
+                intervals.append(float('-inf'))
+
+            else:
+                interval = next_note.midi_number - current_note.midi_number
+                intervals.append(interval)
+
+        return intervals
+
+    def get_classes(self) -> list[int]:
+        """Возвращает классы нот в мелодии.
+
+        :return List[int]: Список классов нот
+        """
+        return [
+            Note.PITCH_LABELS.index(note.note_name[:-1])
+            if not note.is_rest else 12 for note in self._notes
+        ]
+
     @classmethod
     def from_midi(cls, midi_path: str | Path) -> 'Melody':
         """Создает экземпляр Melody из MIDI файла.
@@ -118,9 +193,7 @@ class Melody:
         :param midi_path (str | Path): Путь к MIDI файлу
         :return Melody: Новый экземпляр класса Melody
         """
-        midi_path = str(midi_path)
-
-        midi_data = pretty_midi.PrettyMIDI(midi_path)
+        midi_data = pretty_midi.PrettyMIDI(str(midi_path))
         tempo_value = int(midi_data.get_tempo_changes()[1])
 
         quarter_length = 60.0 / tempo_value
