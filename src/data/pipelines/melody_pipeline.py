@@ -4,7 +4,6 @@ from torch import Tensor
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
 from src.data.labels.melody_label import MelodyLabel
-from src.data.structures.spectrogram import Spectrogram
 from src.data.utils.label_normalizer import LabelNormalizer
 from src.data.pipelines.audio_pipeline import AudioPipeline
 from src.data.pipelines.configs.melody_config import MelodyConfig
@@ -38,10 +37,8 @@ class MelodyPipeline(torch.nn.Module):
         )
 
         self.label_normalizer = LabelNormalizer(
-            f_min=pipeline_config.f_min,
-            f_max=pipeline_config.f_max,
-            offset_min=pipeline_config.offset_min,
-            offset_max=pipeline_config.offset_max,
+            interval_min=pipeline_config.offset_min,
+            interval_max=pipeline_config.offset_max,
             dur_min=pipeline_config.dur_min,
             dur_max=pipeline_config.dur_max,
             seq_len_min=pipeline_config.seq_len_min,
@@ -51,26 +48,22 @@ class MelodyPipeline(torch.nn.Module):
     def forward(self, audio: Audio, melody: Melody) -> tuple[list[Tensor], ...]:
 
         spectrogram = self.audio_pipeline._get_spectrogram(audio)
-        label = self._get_label(spectrogram, melody)
+        label = self._get_label(melody)
 
         spectrogram = self.audio_pipeline.forward(audio)
-        label = self.label_normalizer.transform(label)
+        label = self.label_normalizer.transform_label(label)
 
         return (
             spectrogram,
-            label.offsets,
+            label.intervals,
             label.durations,
             label.seq_len
         )
 
-    def _get_label(self, spectrogram: Spectrogram, melody: Melody) -> MelodyLabel:
+    def _get_label(self, melody: Melody) -> MelodyLabel:
         """Возвращает метки для мелодии
 
         :param Melody melody: Экземпляр мелодии
         :return MelodyLabel: Разметка мелодии
         """
-        return MelodyLabel.from_melody(
-            melody=melody,
-            spectrogram=spectrogram,
-            threshold=self.melody_config.threshold
-        )
+        return MelodyLabel.from_melody(melody)

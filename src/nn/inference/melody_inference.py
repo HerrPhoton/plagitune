@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import torch
+import librosa
 from torch import Tensor
 
 from src.data.utils.slicer import Slicer
@@ -43,12 +44,12 @@ class MelodyInference:
         self.pipeline_config = PipelineConfig(
             mean=kwargs.get('mean', PipelineConfig.mean),
             std=kwargs.get('std', PipelineConfig.std),
-            f_min=kwargs.get('f_min', PipelineConfig.f_min),
-            f_max=kwargs.get('f_max', PipelineConfig.f_max),
-            offset_min=kwargs.get('offset_min', PipelineConfig.offset_min),
-            offset_max=kwargs.get('offset_max', PipelineConfig.offset_max),
+            interval_min=kwargs.get('interval_min', PipelineConfig.interval_min),
+            interval_max=kwargs.get('interval_max', PipelineConfig.interval_max),
             dur_min=kwargs.get('dur_min', PipelineConfig.dur_min),
             dur_max=kwargs.get('dur_max', PipelineConfig.dur_max),
+            seq_len_min=kwargs.get('seq_len_min', PipelineConfig.seq_len_min),
+            seq_len_max=kwargs.get('seq_len_max', PipelineConfig.seq_len_max),
         )
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -66,12 +67,12 @@ class MelodyInference:
             pipeline_config=self.pipeline_config
         )
         self.label_normalizer = LabelNormalizer(
-            f_min=self.pipeline_config.f_min,
-            f_max=self.pipeline_config.f_max,
-            offset_min=self.pipeline_config.offset_min,
-            offset_max=self.pipeline_config.offset_max,
+            interval_min=self.pipeline_config.interval_min,
+            interval_max=self.pipeline_config.interval_max,
             dur_min=self.pipeline_config.dur_min,
             dur_max=self.pipeline_config.dur_max,
+            seq_len_min=self.pipeline_config.seq_len_min,
+            seq_len_max=self.pipeline_config.seq_len_max,
         )
 
     def extract_melody(self, audio: str | Path | Audio, tempo: int) -> Melody:
@@ -88,23 +89,23 @@ class MelodyInference:
 
         dataloader = get_dataloader(dataset)
 
-        all_offsets = []
+        all_intervals = []
         all_durations = []
 
         with torch.no_grad():
             for i, spectrograms in enumerate(dataloader):
                 spectrograms = spectrograms.to(self.device)
-                offsets, durations = self.model.predict_step(spectrograms, i)
+                intervals, durations = self.model.predict_step(spectrograms, i)
 
-                for j in range(offsets.size(0)):
-                    mask = (offsets[j] != SliceConfig.label_pad_value)
-                    all_offsets.append(offsets[j][mask])
+                for j in range(intervals.size(0)):
+                    mask = (intervals[j] != SliceConfig.label_pad_value)
+                    all_intervals.append(intervals[j][mask])
                     all_durations.append(durations[j][mask])
 
-        merged_offsets = torch.cat(all_offsets, dim=0)
+        merged_intervals = torch.cat(all_intervals, dim=0)
         merged_durations = torch.cat(all_durations, dim=0)
 
-        merged_predictions = (merged_offsets, merged_durations)
+        merged_predictions = (merged_intervals, merged_durations)
         return self._predictions_to_melody(merged_predictions, tempo)
 
     def _predictions_to_melody(self, predictions: tuple[Tensor, ...], tempo: int) -> Melody:
@@ -113,37 +114,38 @@ class MelodyInference:
         :param Tuple[Tensor, ...] predictions: Кортеж предсказаний (частоты, классы, смещения, длительности)
         :return Melody: Объект Melody
         """
-        offsets, durations = predictions
+        intervals, durations = predictions
 
-        print(offsets)
-        print(durations)
-
-        offsets = offsets.cpu().numpy()
+        intervals = intervals.cpu().numpy()
         durations = durations.cpu().numpy()
 
-        #min_freq = freqs[freqs >= 20].min()
-        # min_freq = 440
-        # min_midi = Note(float(min_freq), 1).midi_number
-
+        current_midi = 69
         notes = []
-        for i in range(len(offsets)):
 
-            offset = offsets[i]
+        for i in range(len(intervals)):
             duration = float(durations[i])
+            interval = float(intervals[i])
 
-            note = Note(offset, duration)
+            if duration < 0.25:
+                continue
+
+            if interval == float("-inf"):
+                note = Note(None, duration)
+                if i < len(intervals) - 1:
+                    current_midi = 69
+
+            elif interval == float("inf"):
+                note = Note(librosa.midi_to_hz(current_midi), duration)
+
+            else:
+                new_midi = current_midi + int(round(interval))
+                if 12 <= new_midi <= 127:
+                    current_midi = new_midi
+                    note = Note(librosa.midi_to_hz(current_midi), duration)
+                else:
+                    note = Note(None, duration)
+                    current_midi = 69
+
             notes.append(note)
-
-            # offset = int(round(offsets[i]))
-            # duration = float(durations[i])
-
-            # if offset == 0:
-            #     note = Note(None, duration)
-
-            # else:
-            #     note_midi = min_midi + offset
-            #     note = Note(librosa.midi_to_hz(note_midi), duration)
-
-            # notes.append(note)
 
         return Melody(notes, tempo=tempo)

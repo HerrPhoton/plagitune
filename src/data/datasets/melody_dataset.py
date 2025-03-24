@@ -49,10 +49,8 @@ class MelodyDataset(Dataset):
         self.pipeline_config = PipelineConfig(
             mean=kwargs.get('mean', PipelineConfig.mean),
             std=kwargs.get('std', PipelineConfig.std),
-            f_min=kwargs.get('f_min', PipelineConfig.f_min),
-            f_max=kwargs.get('f_max', PipelineConfig.f_max),
-            offset_min=kwargs.get('offset_min', PipelineConfig.offset_min),
-            offset_max=kwargs.get('offset_max', PipelineConfig.offset_max),
+            interval_min=kwargs.get('interval_min', PipelineConfig.interval_min),
+            interval_max=kwargs.get('interval_max', PipelineConfig.interval_max),
             dur_min=kwargs.get('dur_min', PipelineConfig.dur_min),
             dur_max=kwargs.get('dur_max', PipelineConfig.dur_max),
             seq_len_min=kwargs.get('seq_len_min', PipelineConfig.seq_len_min),

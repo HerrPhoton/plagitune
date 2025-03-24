@@ -27,18 +27,11 @@ class PLMelodyNet(L.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
 
-        self.hidden_size = int(kwargs['hidden_size'])
-        self.num_lstm_layers = int(kwargs['num_lstm_layers'])
-        self.dropout = float(kwargs['dropout'])
-        self.bidirectional = bool(kwargs['bidirectional'])
-
         self.lr = float(kwargs['lr'])
 
-        self.frequency_weight = float(kwargs['frequency_weight'])
-        self.class_weight = float(kwargs['class_weight'])
-        self.offset_weight = float(kwargs['offset_weight'])
+        self.interval_weight = float(kwargs['interval_weight'])
         self.duration_weight = float(kwargs['duration_weight'])
-        self.eos_weight = float(kwargs['eos_weight'])
+        self.seq_len_weight = float(kwargs['seq_len_weight'])
 
         self.scheduler_type = kwargs['scheduler_type']
         self.reduce_on_plateau_params = kwargs.get('reduce_on_plateau_params', {})
@@ -50,67 +43,65 @@ class PLMelodyNet(L.LightningModule):
         self.adamw_params = kwargs.get('adamw_params', {})
         self.sgd_params = kwargs.get('sgd_params', {})
 
-        self.model = MelodyNet(
-            hidden_size = self.hidden_size,
-            num_lstm_layers = self.num_lstm_layers,
-            dropout = self.dropout,
-            bidirectional = self.bidirectional
-        )
+        self.model = MelodyNet()
 
         self.masked_loss_fn = nn.MSELoss(reduction='none')
         self.loss_fn = nn.MSELoss(reduction='mean')
 
         self.train_metrics = nn.ModuleDict({
-            'mse_offsets': MeanSquaredError(),
+            'mse_intervals': MeanSquaredError(),
             'mse_durations': MeanSquaredError(),
             'mse_seq_len': MeanSquaredError()
         })
 
         self.val_metrics = nn.ModuleDict({
-            'mse_offsets': MeanSquaredError(),
+            'mse_intervals': MeanSquaredError(),
             'mse_durations': MeanSquaredError(),
             'mse_seq_len': MeanSquaredError()
         })
 
         self.test_metrics = nn.ModuleDict({
-            'mse_offsets': MeanSquaredError(),
+            'mse_intervals': MeanSquaredError(),
             'mse_durations': MeanSquaredError(),
             'mse_seq_len': MeanSquaredError()
         })
 
         self.save_hyperparameters()
 
-    def forward(self, x: Tensor) -> tuple[Tensor, ...]:
+    def forward(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         return self.model(x)
 
-    def training_step(self, batch: tuple[Tensor, ...], batch_idx: int) -> Tensor:
+    def training_step(self, batch: tuple[Tensor, Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
         spectrograms = batch[0]
         targets = batch[1:]
 
         preds = self.forward(spectrograms)
         losses = self._compute_losses(preds, targets)
 
-        loss, loss_offsets, loss_durations, loss_len_seq = losses
+        loss, loss_intervals, loss_durations, loss_len_seq = losses
 
-        preds_offsets = preds[0][:, :targets[0].shape[1]]
+        preds_intervals = preds[0][:, :targets[0].shape[1]]
         preds_durations = preds[1][:, :targets[1].shape[1]]
 
-        mask = (targets[0] != SliceConfig.label_pad_value)
-        self.train_metrics['mse_offsets'](preds_offsets[mask], targets[0][mask])
-        self.train_metrics['mse_durations'](preds_durations[mask], targets[1][mask])
-        self.train_metrics['mse_seq_len'](preds[2], targets[2])
+        interval_mask = (targets[0] != SliceConfig.label_pad_value)
+        duration_mask = (targets[1] != SliceConfig.label_pad_value)
+        seq_len_mask = (targets[2] != SliceConfig.label_pad_value)
 
-        self.log('train_loss_offsets', loss_offsets, on_step=False, on_epoch=True)
+        self.train_metrics['mse_intervals'](preds_intervals[interval_mask], targets[0][interval_mask])
+        self.train_metrics['mse_durations'](preds_durations[duration_mask], targets[1][duration_mask])
+        self.train_metrics['mse_seq_len'](preds[2][seq_len_mask], targets[2][seq_len_mask])
+
+        self.log('train_loss_intervals', loss_intervals, on_step=False, on_epoch=True)
         self.log('train_loss_durations', loss_durations, on_step=False, on_epoch=True)
         self.log('train_loss_len_seq', loss_len_seq, on_step=False, on_epoch=True)
         self.log('train_loss', loss, on_step=False, on_epoch=True)
 
         return loss
 
-    def on_train_epoch_end(self):
+    def on_train_epoch_end(self) -> None:
 
         metrics = {
-            'train_mse_offsets': self.train_metrics['mse_offsets'].compute(),
+            'train_mse_intervals': self.train_metrics['mse_intervals'].compute(),
             'train_mse_durations': self.train_metrics['mse_durations'].compute(),
             'train_mse_seq_len': self.train_metrics['mse_seq_len'].compute()
         }
@@ -118,7 +109,7 @@ class PLMelodyNet(L.LightningModule):
         self.log_dict(metrics, on_step=False, on_epoch=True)
         self.log(
             'train_mse',
-            metrics['train_mse_offsets'] + metrics['train_mse_durations'] + metrics['train_mse_seq_len'],
+            metrics['train_mse_intervals'] + metrics['train_mse_durations'] + metrics['train_mse_seq_len'],
             on_step=False,
             on_epoch=True
         )
@@ -126,34 +117,37 @@ class PLMelodyNet(L.LightningModule):
         for metric in self.train_metrics.values():
             metric.reset()
 
-    def validation_step(self, batch: tuple[Tensor, ...], batch_idx: int):
+    def validation_step(self, batch: tuple[Tensor, Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
         spectrograms = batch[0]
         targets = batch[1:]
 
         preds = self.forward(spectrograms)
         losses = self._compute_losses(preds, targets)
 
-        loss, loss_offsets, loss_durations, loss_len_seq = losses
+        loss, loss_intervals, loss_durations, loss_len_seq = losses
 
-        preds_offsets = preds[0][:, :targets[0].shape[1]]
+        preds_intervals = preds[0][:, :targets[0].shape[1]]
         preds_durations = preds[1][:, :targets[1].shape[1]]
 
-        mask = (targets[0] != SliceConfig.label_pad_value)
-        self.val_metrics['mse_offsets'](preds_offsets[mask], targets[0][mask])
-        self.val_metrics['mse_durations'](preds_durations[mask], targets[1][mask])
-        self.val_metrics['mse_seq_len'](preds[2], targets[2])
+        interval_mask = (targets[0] != SliceConfig.label_pad_value)
+        duration_mask = (targets[1] != SliceConfig.label_pad_value)
+        seq_len_mask = (targets[2] != SliceConfig.label_pad_value)
 
-        self.log('val_loss_offsets', loss_offsets, on_step=False, on_epoch=True)
+        self.val_metrics['mse_intervals'](preds_intervals[interval_mask], targets[0][interval_mask])
+        self.val_metrics['mse_durations'](preds_durations[duration_mask], targets[1][duration_mask])
+        self.val_metrics['mse_seq_len'](preds[2][seq_len_mask], targets[2][seq_len_mask])
+
+        self.log('val_loss_intervals', loss_intervals, on_step=False, on_epoch=True)
         self.log('val_loss_durations', loss_durations, on_step=False, on_epoch=True)
         self.log('val_loss_len_seq', loss_len_seq, on_step=False, on_epoch=True)
         self.log('val_loss', loss, on_step=False, on_epoch=True)
 
         return loss
 
-    def on_validation_epoch_end(self):
+    def on_validation_epoch_end(self) -> None:
 
         metrics = {
-            'val_mse_offsets': self.val_metrics['mse_offsets'].compute(),
+            'val_mse_intervals': self.val_metrics['mse_intervals'].compute(),
             'val_mse_durations': self.val_metrics['mse_durations'].compute(),
             'val_mse_seq_len': self.val_metrics['mse_seq_len'].compute()
         }
@@ -161,7 +155,7 @@ class PLMelodyNet(L.LightningModule):
         self.log_dict(metrics, on_step=False, on_epoch=True)
         self.log(
             'val_mse',
-            metrics['val_mse_offsets'] + metrics['val_mse_durations'] + metrics['val_mse_seq_len'],
+            metrics['val_mse_intervals'] + metrics['val_mse_durations'] + metrics['val_mse_seq_len'],
             on_step=False,
             on_epoch=True
         )
@@ -169,7 +163,7 @@ class PLMelodyNet(L.LightningModule):
         for metric in self.val_metrics.values():
             metric.reset()
 
-    def test_step(self, batch: tuple[Tensor, ...], batch_idx: int) -> Tensor:
+    def test_step(self, batch: tuple[Tensor, Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
 
         spectrograms = batch[0]
         targets = batch[1:]
@@ -178,28 +172,31 @@ class PLMelodyNet(L.LightningModule):
         losses = self._compute_losses(preds, targets)
 
         loss = losses[0]
-        loss_offsets = losses[1]
+        loss_intervals = losses[1]
         loss_durations = losses[2]
         loss_len_seq = losses[3]
 
-        preds_offsets = preds[0][:, :targets[0].shape[1]]
+        preds_intervals = preds[0][:, :targets[0].shape[1]]
         preds_durations = preds[1][:, :targets[1].shape[1]]
 
-        mask = (targets[0] != SliceConfig.label_pad_value)
-        self.test_metrics['mse_offsets'](preds_offsets[mask], targets[0][mask])
-        self.test_metrics['mse_durations'](preds_durations[mask], targets[1][mask])
-        self.test_metrics['mse_seq_len'](preds[2], targets[2])
+        interval_mask = (targets[0] != SliceConfig.label_pad_value)
+        duration_mask = (targets[1] != SliceConfig.label_pad_value)
+        seq_len_mask = (targets[2] != SliceConfig.label_pad_value)
 
-        self.log('test_loss_offsets', loss_offsets, on_step=False, on_epoch=True)
+        self.test_metrics['mse_intervals'](preds_intervals[interval_mask], targets[0][interval_mask])
+        self.test_metrics['mse_durations'](preds_durations[duration_mask], targets[1][duration_mask])
+        self.test_metrics['mse_seq_len'](preds[2][seq_len_mask], targets[2][seq_len_mask])
+
+        self.log('test_loss_intervals', loss_intervals, on_step=False, on_epoch=True)
         self.log('test_loss_durations', loss_durations, on_step=False, on_epoch=True)
         self.log('test_loss_len_seq', loss_len_seq, on_step=False, on_epoch=True)
         self.log('test_loss', loss, on_step=False, on_epoch=True)
 
         return loss
 
-    def on_test_epoch_end(self):
+    def on_test_epoch_end(self) -> None:
         metrics = {
-            'test_mse_offsets': self.test_metrics['mse_offsets'].compute(),
+            'test_mse_intervals': self.test_metrics['mse_intervals'].compute(),
             'test_mse_durations': self.test_metrics['mse_durations'].compute(),
             'test_mse_seq_len': self.test_metrics['mse_seq_len'].compute()
         }
@@ -207,7 +204,7 @@ class PLMelodyNet(L.LightningModule):
         self.log_dict(metrics, on_step=False, on_epoch=True)
         self.log(
             'test_mse',
-            metrics['test_mse_offsets'] + metrics['test_mse_durations'] + metrics['test_mse_seq_len'],
+            metrics['test_mse_intervals'] + metrics['test_mse_durations'] + metrics['test_mse_seq_len'],
             on_step=False,
             on_epoch=True
         )
@@ -215,7 +212,7 @@ class PLMelodyNet(L.LightningModule):
         for metric in self.test_metrics.values():
             metric.reset()
 
-    def predict_step(self, batch: tuple[Tensor, ...], batch_idx: int) -> tuple[Tensor, ...]:
+    def predict_step(self, batch: tuple[Tensor, Tensor, Tensor, Tensor], batch_idx: int) -> tuple[Tensor, Tensor, Tensor]:
         return self.model.predict(batch)
 
     def configure_optimizers(self) -> dict[str, Any]:
@@ -273,34 +270,34 @@ class PLMelodyNet(L.LightningModule):
 
     def _compute_losses(
         self,
-        preds: tuple[Tensor, ...],
-        targets: tuple[Tensor, ...]
-    ) -> tuple[Tensor, ...]:
+        preds: tuple[Tensor, Tensor, Tensor],
+        targets: tuple[Tensor, Tensor, Tensor]
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Вычисляет потери для предсказанных и целевых значений.
 
         :param Tuple[Tensor, ...] preds: Предсказанные значения
         :param Tuple[Tensor, ...] targets: Целевые значения
         :return Tuple[Tensor, ...]: Общая потеря, потеря по частотам, потеря по классам, потеря по смещениям, потеря по длительностям
         """
-        predicted_offsets = preds[0].squeeze(1)
+        predicted_intervals = preds[0].squeeze(1)
         predicted_durations = preds[1].squeeze(1)
         predicted_seq_len = preds[2]
 
-        target_offsets = targets[0]
+        target_intervals = targets[0]
         target_durations = targets[1]
         target_seq_len = targets[2]
 
-        offsets_loss = self._masked_mse(predicted_offsets, target_offsets)
+        intervals_loss = self._masked_mse(predicted_intervals, target_intervals)
         durations_loss = self._masked_mse(predicted_durations, target_durations)
         seq_len_loss = self.loss_fn(predicted_seq_len, target_seq_len)
 
         loss = (
-            self.offset_weight * offsets_loss +
+            self.interval_weight * intervals_loss +
             self.duration_weight * durations_loss +
-            self.eos_weight * seq_len_loss
+            self.seq_len_weight * seq_len_loss
         )
 
-        return loss, offsets_loss, durations_loss, seq_len_loss
+        return loss, intervals_loss, durations_loss, seq_len_loss
 
     def _masked_mse(self, preds: Tensor, targets: Tensor) -> Tensor:
         """Вычисляет MSE с учетом паддинга.
