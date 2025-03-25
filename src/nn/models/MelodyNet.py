@@ -16,36 +16,29 @@ class MelodyNet(nn.Module):
         self.slice_size = SliceConfig.slice_size
 
         self.label_normalizer = LabelNormalizer(
-            interval_min=PipelineConfig.interval_min,
-            interval_max=PipelineConfig.interval_max,
+            freq_min=PipelineConfig.f_min,
+            freq_max=PipelineConfig.f_max,
             dur_min=PipelineConfig.dur_min,
             dur_max=PipelineConfig.dur_max,
             seq_len_min=PipelineConfig.seq_len_min,
             seq_len_max=PipelineConfig.seq_len_max,
         )
 
-        self.resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-
-        original_conv = self.resnet.conv1
+        self.resnet = models.resnet50(weights=None)
         self.resnet.conv1 = nn.Conv2d(
             1,
-            original_conv.out_channels,
-            kernel_size=original_conv.kernel_size,
-            stride=original_conv.stride,
-            padding=original_conv.padding,
-            bias=False if original_conv.bias is None else True
+            self.resnet.conv1.out_channels,
+            kernel_size=self.resnet.conv1.kernel_size,
+            stride=self.resnet.conv1.stride,
+            padding=self.resnet.conv1.padding,
+            bias=False if self.resnet.conv1.bias is None else True
         )
-
-        with torch.no_grad():
-            self.resnet.conv1.weight = nn.Parameter(
-                original_conv.weight.data.mean(dim=1, keepdim=True)
-            )
 
         self.resnet = nn.Sequential(*list(self.resnet.children())[:-2])
 
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
 
-        self.interval_head = nn.Linear(2048, self.slice_size)
+        self.freqs_head = nn.Linear(2048, self.slice_size)
         self.duration_head = nn.Linear(2048, self.slice_size)
         self.seq_len_head = nn.Linear(2048, 1)
 
@@ -56,37 +49,37 @@ class MelodyNet(nn.Module):
         features = self.avg_pool(features)
         features = features.flatten(1)
 
-        intervals = self.interval_head(features)
+        freqs = self.freqs_head(features)
         durations = self.duration_head(features)
         seq_len = self.seq_len_head(features)
 
-        return intervals, durations, seq_len
+        return freqs, durations, seq_len
 
     def predict(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor]:
 
-        intervals, durations, seq_len = self.forward(x)
-        intervals, durations, seq_len = self.label_normalizer.inverse_transform(intervals, durations, seq_len)
+        freqs, durations, seq_len = self.forward(x)
+        freqs, durations, seq_len = self.label_normalizer.inverse_transform(freqs, durations, seq_len)
 
         seq_lengths = seq_len.squeeze(-1).round().long()
 
-        batch_size = intervals.size(0)
-        truncated_intervals = []
+        batch_size = freqs.size(0)
+        truncated_freqs = []
         truncated_durations = []
 
         for i in range(batch_size):
             length = seq_lengths[i]
-            truncated_intervals.append(intervals[i, :length])
+            truncated_freqs.append(freqs[i, :length])
             truncated_durations.append(durations[i, :length])
 
-        max_len = max(len(seq) for seq in truncated_intervals)
+        max_len = max(len(seq) for seq in truncated_freqs)
 
-        padded_intervals = torch.stack([
+        padded_freqs = torch.stack([
             torch.nn.functional.pad(seq, (0, max_len - len(seq)), value=SliceConfig.label_pad_value)
-            for seq in truncated_intervals
+            for seq in truncated_freqs
         ])
         padded_durations = torch.stack([
             torch.nn.functional.pad(seq, (0, max_len - len(seq)), value=SliceConfig.label_pad_value)
             for seq in truncated_durations
         ])
 
-        return padded_intervals, padded_durations
+        return padded_freqs, padded_durations

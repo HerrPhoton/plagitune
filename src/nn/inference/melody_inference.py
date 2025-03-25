@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import torch
-import librosa
 from torch import Tensor
 
 from src.data.utils.slicer import Slicer
@@ -44,8 +43,8 @@ class MelodyInference:
         self.pipeline_config = PipelineConfig(
             mean=kwargs.get('mean', PipelineConfig.mean),
             std=kwargs.get('std', PipelineConfig.std),
-            interval_min=kwargs.get('interval_min', PipelineConfig.interval_min),
-            interval_max=kwargs.get('interval_max', PipelineConfig.interval_max),
+            f_min=kwargs.get('f_min', PipelineConfig.f_min),
+            f_max=kwargs.get('f_max', PipelineConfig.f_max),
             dur_min=kwargs.get('dur_min', PipelineConfig.dur_min),
             dur_max=kwargs.get('dur_max', PipelineConfig.dur_max),
             seq_len_min=kwargs.get('seq_len_min', PipelineConfig.seq_len_min),
@@ -67,8 +66,8 @@ class MelodyInference:
             pipeline_config=self.pipeline_config
         )
         self.label_normalizer = LabelNormalizer(
-            interval_min=self.pipeline_config.interval_min,
-            interval_max=self.pipeline_config.interval_max,
+            freq_min=self.pipeline_config.f_min,
+            freq_max=self.pipeline_config.f_max,
             dur_min=self.pipeline_config.dur_min,
             dur_max=self.pipeline_config.dur_max,
             seq_len_min=self.pipeline_config.seq_len_min,
@@ -89,23 +88,25 @@ class MelodyInference:
 
         dataloader = get_dataloader(dataset)
 
-        all_intervals = []
+        all_freqs = []
         all_durations = []
 
         with torch.no_grad():
             for i, spectrograms in enumerate(dataloader):
                 spectrograms = spectrograms.to(self.device)
-                intervals, durations = self.model.predict_step(spectrograms, i)
+                freqs, durations = self.model.predict_step(spectrograms, i)
 
-                for j in range(intervals.size(0)):
-                    mask = (intervals[j] != SliceConfig.label_pad_value)
-                    all_intervals.append(intervals[j][mask])
+                for j in range(freqs.size(0)):
+                    mask = (freqs[j] != SliceConfig.label_pad_value)
+                    all_freqs.append(freqs[j][mask])
                     all_durations.append(durations[j][mask])
 
-        merged_intervals = torch.cat(all_intervals, dim=0)
+                break
+
+        merged_freqs = torch.cat(all_freqs, dim=0)
         merged_durations = torch.cat(all_durations, dim=0)
 
-        merged_predictions = (merged_intervals, merged_durations)
+        merged_predictions = (merged_freqs, merged_durations)
         return self._predictions_to_melody(merged_predictions, tempo)
 
     def _predictions_to_melody(self, predictions: tuple[Tensor, ...], tempo: int) -> Melody:
@@ -114,38 +115,35 @@ class MelodyInference:
         :param Tuple[Tensor, ...] predictions: Кортеж предсказаний (частоты, классы, смещения, длительности)
         :return Melody: Объект Melody
         """
-        intervals, durations = predictions
+        freqs, durations = predictions
 
-        intervals = intervals.cpu().numpy()
+        freqs = freqs.cpu().numpy()
         durations = durations.cpu().numpy()
 
-        current_midi = 69
         notes = []
+        prev_note = None
 
-        for i in range(len(intervals)):
+        for i in range(len(freqs)):
             duration = float(durations[i])
-            interval = float(intervals[i])
+            freq = float(freqs[i])
 
-            if duration < 0.25:
+            if duration < 0:
                 continue
 
-            if interval == float("-inf"):
-                note = Note(None, duration)
-                if i < len(intervals) - 1:
-                    current_midi = 69
+            if duration < 0.25:
+                freq = 0
 
-            elif interval == float("inf"):
-                note = Note(librosa.midi_to_hz(current_midi), duration)
+            if 20 <= freq <= 20_0000:
+                note = Note(freq, duration)
 
             else:
-                new_midi = current_midi + int(round(interval))
-                if 12 <= new_midi <= 127:
-                    current_midi = new_midi
-                    note = Note(librosa.midi_to_hz(current_midi), duration)
-                else:
-                    note = Note(None, duration)
-                    current_midi = 69
+                note = Note(None, duration)
 
-            notes.append(note)
+            if prev_note is not None and note.freq is None and prev_note.freq is None:
+                prev_note.duration += note.duration
+
+            else:
+                notes.append(note)
+                prev_note = note
 
         return Melody(notes, tempo=tempo)

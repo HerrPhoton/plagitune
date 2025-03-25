@@ -37,8 +37,8 @@ class MelodyPipeline(torch.nn.Module):
         )
 
         self.label_normalizer = LabelNormalizer(
-            interval_min=pipeline_config.offset_min,
-            interval_max=pipeline_config.offset_max,
+            freq_min=pipeline_config.f_min,
+            freq_max=pipeline_config.f_max,
             dur_min=pipeline_config.dur_min,
             dur_max=pipeline_config.dur_max,
             seq_len_min=pipeline_config.seq_len_min,
@@ -55,7 +55,7 @@ class MelodyPipeline(torch.nn.Module):
 
         return (
             spectrogram,
-            label.intervals,
+            label.freqs,
             label.durations,
             label.seq_len
         )

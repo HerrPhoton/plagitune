@@ -21,7 +21,7 @@ class AudioPipeline(torch.nn.Module):
             std=pipeline_config.std
         )
 
-        self.amplitude_to_db = AmplitudeToDB(stype='power')
+        self.amplitude_to_db = AmplitudeToDB()
 
     def forward(self, audio: Audio) -> Tensor:
 

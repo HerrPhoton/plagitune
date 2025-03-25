@@ -9,7 +9,7 @@ from src.data.structures.melody import Melody
 @dataclass
 class MelodyLabel:
 
-    intervals: Tensor
+    freqs: Tensor
     durations: Tensor
     seq_len: Tensor
 
@@ -20,12 +20,12 @@ class MelodyLabel:
         :param Melody melody: Объект мелодии
         :return: MelodyLabel: Объект с различными представлениями мелодии
         """
-        intervals = torch.tensor(melody.get_intervals(), dtype=torch.float32)
+        freqs = torch.tensor(melody.get_freqs(), dtype=torch.float32)
         durations = torch.tensor(melody.get_durations(), dtype=torch.float32)
-        seq_len = torch.tensor([len(intervals)], dtype=torch.float32)
+        seq_len = torch.tensor([len(freqs)], dtype=torch.float32)
 
         return cls(
-            intervals=intervals,
+            freqs=freqs,
             durations=durations,
             seq_len=seq_len
         )
