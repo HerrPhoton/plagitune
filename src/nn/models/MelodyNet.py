@@ -38,9 +38,18 @@ class MelodyNet(nn.Module):
 
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
 
-        self.freqs_head = nn.Linear(2048, self.slice_size)
-        self.duration_head = nn.Linear(2048, self.slice_size)
-        self.seq_len_head = nn.Linear(2048, 1)
+        self.freqs_head = nn.Sequential(
+            nn.Linear(2048, self.slice_size),
+            nn.Sigmoid()
+        )
+        self.duration_head = nn.Sequential(
+            nn.Linear(2048, self.slice_size),
+            nn.Sigmoid()
+        )
+        self.seq_len_head = nn.Sequential(
+            nn.Linear(2048, 1),
+            nn.Sigmoid()
+        )
 
     def forward(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor]:
 
@@ -55,7 +64,10 @@ class MelodyNet(nn.Module):
 
         return freqs, durations, seq_len
 
+    @torch.no_grad()
     def predict(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+
+        self.eval()
 
         freqs, durations, seq_len = self.forward(x)
         freqs, durations, seq_len = self.label_normalizer.inverse_transform(freqs, durations, seq_len)
