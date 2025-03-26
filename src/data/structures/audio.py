@@ -40,69 +40,63 @@ class Audio:
         if self.waveform.shape[0] > 1:
             self.waveform = torch.mean(self.waveform, dim=0, keepdim=True)
 
-    def visualize(self, **style_kwargs) -> None:
+    def visualize(self, ax: plt.Axes | None = None, **style_kwargs) -> plt.Axes:
         """Визуализирует волновую форму аудиосигнала.
 
+        :param ax: Axes для отрисовки. Если None, создается новая фигура
         :param style_kwargs: Дополнительные параметры визуализации
+        :return: Axes с отрисованной волновой формой
         """
         style = WaveformStyle(**style_kwargs)
-        plt.style.use('dark_background')
 
-        fig, axes = plt.subplots(
-            self.num_channels,
-            1,
-            figsize=(style.figsize[0], style.figsize[1] * self.num_channels),
-            facecolor=style.background_color
-        )
+        if ax is None:
+            fig, ax = plt.subplots(figsize=style.figsize)
+            fig.patch.set_facecolor(style.background_color)
 
-        if self.num_channels == 1:
-            axes = [axes]
+        ax.set_facecolor(style.background_color)
 
         time_axis = np.linspace(0, self.duration, self.waveform.shape[1])
 
-        for channel, ax in enumerate(axes):
+        ax.plot(
+            time_axis,
+            self.waveform[0].numpy(),
+            color=style.color,
+            alpha=style.alpha,
+            linewidth=style.linewidth,
+        )
 
-            ax.plot(
-                time_axis,
-                self.waveform[channel].numpy(),
-                color=style.color,
-                alpha=style.alpha,
-                linewidth=style.linewidth,
+        if style.grid_visible:
+            ax.grid(
+                True,
+                linestyle=style.grid_linestyle,
+                alpha=style.grid_alpha,
+                color=style.grid_color
             )
 
-            if style.grid_visible:
-                ax.grid(
-                    True,
-                    linestyle=style.grid_linestyle,
-                    alpha=style.grid_alpha,
-                    color=style.grid_color
-                )
-
-            ax.set_facecolor(style.background_color)
-
+        if style.x_label:
             ax.set_xlabel(style.x_label, color=style.text_color, size=style.labels_fontsize)
+        if style.y_label:
             ax.set_ylabel(style.y_label, color=style.text_color, size=style.labels_fontsize)
 
+        if style.xlim:
             ax.set_xlim(style.xlim)
+        if style.ylim:
             ax.set_ylim(style.ylim)
 
-            ax.tick_params(colors=style.text_color, size=style.ticks_fontsize, labelsize=style.ticks_fontsize)
+        ax.tick_params(colors=style.text_color, labelsize=style.ticks_fontsize)
 
-            for spine in ax.spines.values():
-                spine.set_color(style.grid_color)
-
-            if self.num_channels > 1:
-                ax.set_title(f'Канал {channel + 1}', pad=style.title_pad, color=style.text_color)
+        for spine in ax.spines.values():
+            spine.set_color(style.grid_color)
 
         if style.title:
-            fig.suptitle(
+            ax.set_title(
                 style.title,
                 color=style.text_color,
-                fontsize=style.title_fontsize
+                fontsize=style.title_fontsize,
+                pad=style.title_pad
             )
 
-        plt.tight_layout()
-        plt.show()
+        return ax
 
     @property
     def duration(self) -> float:

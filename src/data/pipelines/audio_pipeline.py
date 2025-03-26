@@ -29,6 +29,14 @@ class AudioPipeline(torch.nn.Module):
         spectrogram = self._get_spectrogram(audio)
 
         spectrogram = self.amplitude_to_db(spectrogram.spectrogram)
+
+        spectrogram = torch.nn.functional.interpolate(
+            spectrogram.unsqueeze(0),
+            size=(128, 256),
+            mode='bilinear',
+            align_corners=True
+        ).squeeze(0)
+
         spectrogram = self.spec_normalizer.transform(spectrogram)
 
         return spectrogram

@@ -49,21 +49,21 @@ class PLMelodyNet(L.LightningModule):
         self.loss_fn = nn.MSELoss(reduction='mean')
 
         self.train_metrics = nn.ModuleDict({
-            'mse_freqs': MeanSquaredError(),
-            'mse_durations': MeanSquaredError(),
-            'mse_seq_len': MeanSquaredError()
+            'mse_freqs_hz': MeanSquaredError(),
+            'mse_durations_beats': MeanSquaredError(),
+            'mse_seq_len': MeanSquaredError(),
         })
 
         self.val_metrics = nn.ModuleDict({
-            'mse_freqs': MeanSquaredError(),
-            'mse_durations': MeanSquaredError(),
-            'mse_seq_len': MeanSquaredError()
+            'mse_freqs_hz': MeanSquaredError(),
+            'mse_durations_beats': MeanSquaredError(),
+            'mse_seq_len': MeanSquaredError(),
         })
 
         self.test_metrics = nn.ModuleDict({
-            'mse_freqs': MeanSquaredError(),
-            'mse_durations': MeanSquaredError(),
-            'mse_seq_len': MeanSquaredError()
+            'mse_freqs_hz': MeanSquaredError(),
+            'mse_durations_beats': MeanSquaredError(),
+            'mse_seq_len': MeanSquaredError(),
         })
 
         self.save_hyperparameters()
@@ -80,16 +80,7 @@ class PLMelodyNet(L.LightningModule):
 
         loss, loss_freqs, loss_durations, loss_len_seq = losses
 
-        preds_freqs = preds[0][:, :targets[0].shape[1]]
-        preds_durations = preds[1][:, :targets[1].shape[1]]
-
-        freqs_mask = (targets[0] != SliceConfig.label_pad_value)
-        durations_mask = (targets[1] != SliceConfig.label_pad_value)
-        seq_len_mask = (targets[2] != SliceConfig.label_pad_value)
-
-        self.train_metrics['mse_freqs'](preds_freqs[freqs_mask], targets[0][freqs_mask])
-        self.train_metrics['mse_durations'](preds_durations[durations_mask], targets[1][durations_mask])
-        self.train_metrics['mse_seq_len'](preds[2][seq_len_mask], targets[2][seq_len_mask])
+        self._compute_denormalized_metrics(preds, targets, self.train_metrics)
 
         self.log('train_loss_freqs', loss_freqs, on_step=False, on_epoch=True)
         self.log('train_loss_durations', loss_durations, on_step=False, on_epoch=True)
@@ -101,15 +92,15 @@ class PLMelodyNet(L.LightningModule):
     def on_train_epoch_end(self) -> None:
 
         metrics = {
-            'train_mse_freqs': self.train_metrics['mse_freqs'].compute(),
-            'train_mse_durations': self.train_metrics['mse_durations'].compute(),
-            'train_mse_seq_len': self.train_metrics['mse_seq_len'].compute()
+            'train_mse_freqs_hz': self.train_metrics['mse_freqs_hz'].compute(),
+            'train_mse_durations_beats': self.train_metrics['mse_durations_beats'].compute(),
+            'train_mse_seq_len': self.train_metrics['mse_seq_len'].compute(),
         }
 
         self.log_dict(metrics, on_step=False, on_epoch=True)
         self.log(
             'train_score',
-            metrics['train_mse_freqs'] + metrics['train_mse_durations'] + metrics['train_mse_seq_len'],
+            metrics['train_mse_freqs_hz'] + metrics['train_mse_durations_beats'] + metrics['train_mse_seq_len'],
             on_step=False,
             on_epoch=True
         )
@@ -126,16 +117,7 @@ class PLMelodyNet(L.LightningModule):
 
         loss, loss_freqs, loss_durations, loss_len_seq = losses
 
-        preds_freqs = preds[0][:, :targets[0].shape[1]]
-        preds_durations = preds[1][:, :targets[1].shape[1]]
-
-        freqs_mask = (targets[0] != SliceConfig.label_pad_value)
-        durations_mask = (targets[1] != SliceConfig.label_pad_value)
-        seq_len_mask = (targets[2] != SliceConfig.label_pad_value)
-
-        self.val_metrics['mse_freqs'](preds_freqs[freqs_mask], targets[0][freqs_mask])
-        self.val_metrics['mse_durations'](preds_durations[durations_mask], targets[1][durations_mask])
-        self.val_metrics['mse_seq_len'](preds[2][seq_len_mask], targets[2][seq_len_mask])
+        self._compute_denormalized_metrics(preds, targets, self.val_metrics)
 
         self.log('val_loss_freqs', loss_freqs, on_step=False, on_epoch=True)
         self.log('val_loss_durations', loss_durations, on_step=False, on_epoch=True)
@@ -147,15 +129,15 @@ class PLMelodyNet(L.LightningModule):
     def on_validation_epoch_end(self) -> None:
 
         metrics = {
-            'val_mse_freqs': self.val_metrics['mse_freqs'].compute(),
-            'val_mse_durations': self.val_metrics['mse_durations'].compute(),
-            'val_mse_seq_len': self.val_metrics['mse_seq_len'].compute()
+            'val_mse_freqs_hz': self.val_metrics['mse_freqs_hz'].compute(),
+            'val_mse_durations_beats': self.val_metrics['mse_durations_beats'].compute(),
+            'val_mse_seq_len': self.val_metrics['mse_seq_len'].compute(),
         }
 
         self.log_dict(metrics, on_step=False, on_epoch=True)
         self.log(
             'val_score',
-            metrics['val_mse_freqs'] + metrics['val_mse_durations'] + metrics['val_mse_seq_len'],
+            metrics['val_mse_freqs_hz'] + metrics['val_mse_durations_beats'] + metrics['val_mse_seq_len'],
             on_step=False,
             on_epoch=True
         )
@@ -176,16 +158,7 @@ class PLMelodyNet(L.LightningModule):
         loss_durations = losses[2]
         loss_len_seq = losses[3]
 
-        preds_freqs = preds[0][:, :targets[0].shape[1]]
-        preds_durations = preds[1][:, :targets[1].shape[1]]
-
-        freqs_mask = (targets[0] != SliceConfig.label_pad_value)
-        durations_mask = (targets[1] != SliceConfig.label_pad_value)
-        seq_len_mask = (targets[2] != SliceConfig.label_pad_value)
-
-        self.test_metrics['mse_freqs'](preds_freqs[freqs_mask], targets[0][freqs_mask])
-        self.test_metrics['mse_durations'](preds_durations[durations_mask], targets[1][durations_mask])
-        self.test_metrics['mse_seq_len'](preds[2][seq_len_mask], targets[2][seq_len_mask])
+        self._compute_denormalized_metrics(preds, targets, self.test_metrics)
 
         self.log('test_loss_freqs', loss_freqs, on_step=False, on_epoch=True)
         self.log('test_loss_durations', loss_durations, on_step=False, on_epoch=True)
@@ -196,15 +169,15 @@ class PLMelodyNet(L.LightningModule):
 
     def on_test_epoch_end(self) -> None:
         metrics = {
-            'test_mse_freqs': self.test_metrics['mse_freqs'].compute(),
-            'test_mse_durations': self.test_metrics['mse_durations'].compute(),
-            'test_mse_seq_len': self.test_metrics['mse_seq_len'].compute()
+            'test_mse_freqs_hz': self.test_metrics['mse_freqs_hz'].compute(),
+            'test_mse_durations_beats': self.test_metrics['mse_durations_beats'].compute(),
+            'test_mse_seq_len': self.test_metrics['mse_seq_len'].compute(),
         }
 
         self.log_dict(metrics, on_step=False, on_epoch=True)
         self.log(
             'test_score',
-            metrics['test_mse_freqs'] + metrics['test_mse_durations'] + metrics['test_mse_seq_len'],
+            metrics['test_mse_freqs_hz'] + metrics['test_mse_durations_beats'] + metrics['test_mse_seq_len'],
             on_step=False,
             on_epoch=True
         )
@@ -315,6 +288,40 @@ class PLMelodyNet(L.LightningModule):
         loss *= mask
 
         return loss.sum() / mask.sum()
+
+    def _compute_denormalized_metrics(self, preds: tuple[Tensor, Tensor, Tensor], targets: tuple[Tensor, Tensor, Tensor], metrics_dict: dict):
+        """Вычисляет метрики для денормализованных значений.
+
+        :param preds: Предсказания модели
+        :param targets: Целевые значения
+        :param metrics_dict: Словарь с метриками
+        """
+        preds_freqs = preds[0][:, :targets[0].shape[1]]
+        preds_durations = preds[1][:, :targets[1].shape[1]]
+        preds_seq_len = preds[2]
+
+        freqs_mask = (targets[0] != SliceConfig.label_pad_value)
+        durations_mask = (targets[1] != SliceConfig.label_pad_value)
+
+        denorm_preds_freqs, denorm_preds_durations, denorm_preds_seq_len = self.model.label_normalizer.inverse_transform(
+            preds_freqs, preds_durations, preds_seq_len
+        )
+        denorm_target_freqs, denorm_target_durations, denorm_target_seq_len = self.model.label_normalizer.inverse_transform(
+            targets[0], targets[1], targets[2]
+        )
+
+        metrics_dict['mse_freqs_hz'](
+            denorm_preds_freqs[freqs_mask],
+            denorm_target_freqs[freqs_mask]
+        )
+        metrics_dict['mse_durations_beats'](
+            denorm_preds_durations[durations_mask],
+            denorm_target_durations[durations_mask]
+        )
+        metrics_dict['mse_seq_len'](
+            denorm_preds_seq_len,
+            denorm_target_seq_len
+        )
 
 
 if __name__ == "__main__":

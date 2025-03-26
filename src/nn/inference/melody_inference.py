@@ -121,29 +121,17 @@ class MelodyInference:
         durations = durations.cpu().numpy()
 
         notes = []
-        prev_note = None
 
         for i in range(len(freqs)):
             duration = float(durations[i])
             freq = float(freqs[i])
 
-            if duration < 0:
-                continue
-
-            if duration < 0.25:
-                freq = 0
-
-            if 20 <= freq <= 20_0000:
-                note = Note(freq, duration)
-
-            else:
+            if freq < 20:
                 note = Note(None, duration)
 
-            if prev_note is not None and note.freq is None and prev_note.freq is None:
-                prev_note.duration += note.duration
-
             else:
-                notes.append(note)
-                prev_note = note
+                note = Note(freq, duration)
+
+            notes.append(note)
 
         return Melody(notes, tempo=tempo)

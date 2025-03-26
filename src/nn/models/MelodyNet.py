@@ -13,8 +13,6 @@ class MelodyNet(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.slice_size = SliceConfig.slice_size
-
         self.label_normalizer = LabelNormalizer(
             freq_min=PipelineConfig.f_min,
             freq_max=PipelineConfig.f_max,
@@ -24,7 +22,7 @@ class MelodyNet(nn.Module):
             seq_len_max=PipelineConfig.seq_len_max,
         )
 
-        self.resnet = models.resnet50(weights=None)
+        self.resnet = models.resnet50(pretrained=True)
         self.resnet.conv1 = nn.Conv2d(
             1,
             self.resnet.conv1.out_channels,
@@ -39,11 +37,11 @@ class MelodyNet(nn.Module):
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
 
         self.freqs_head = nn.Sequential(
-            nn.Linear(2048, self.slice_size),
+            nn.Linear(2048, 64),
             nn.Sigmoid()
         )
         self.duration_head = nn.Sequential(
-            nn.Linear(2048, self.slice_size),
+            nn.Linear(2048, 64),
             nn.Sigmoid()
         )
         self.seq_len_head = nn.Sequential(

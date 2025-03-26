@@ -124,45 +124,39 @@ class MelodyDataset(Dataset):
 
             a.trim_silence()
 
-            if a.duration != m.duration:
+            target_duration = min(a.duration, m.duration)
 
-                if a.duration > m.duration:
-                    samples_to_keep = int(m.duration * a.sample_rate)
-                    a.waveform = a.waveform[:, :samples_to_keep]
+            if a.duration > target_duration:
+                samples_to_keep = int(target_duration * a.sample_rate)
+                a.waveform = a.waveform[:, :samples_to_keep]
 
-                else:
-                    new_notes = []
-                    current_time = 0.0
+            if m.duration > target_duration:
+                total_beats = m._seconds_to_beats(target_duration)
+                accumulated_beats = 0.0
+                new_notes = []
 
-                    for note in m._notes:
-                        note_duration = m._beats_to_seconds(note._duration)
-                        note_end = current_time + note_duration
+                for note in m._notes:
+                    remaining_beats = total_beats - accumulated_beats
 
-                        if note_end <= a.duration:
-                            new_notes.append(note)
+                    if remaining_beats <= 0:
+                        break
 
-                        elif current_time < a.duration:
-                            partial_duration = a.duration - current_time
-                            partial_beats = m._seconds_to_beats(partial_duration)
+                    if accumulated_beats + note._duration <= total_beats:
+                        # Нота помещается целиком
+                        new_notes.append(note)
+                        accumulated_beats += note._duration
+                    else:
+                        # Обрезаем последнюю ноту
+                        trimmed_note = Note(note._note, max(0.25, remaining_beats))
+                        new_notes.append(trimmed_note)
+                        break
 
-                            if note.is_rest:
-                                new_note = Note(None, partial_beats)
+                m._notes = new_notes
 
-                            else:
-                                new_note = Note(note.note_name, partial_beats)
+            #audio_windows = self.slicer.slice_audio_by_measure(a, m._tempo)
+            #melody_windows = self.slicer.slice_melody_by_measure(m)
 
-                            new_notes.append(new_note)
-                            break
-
-                        else:
-                            break
-
-                        current_time = note_end
-
-                    m._notes = new_notes
-
-            audio_windows = self.slicer.slice_audio(a)
-            melody_windows = self.slicer.slice_melody(m, a)
+            audio_windows, melody_windows = self.slicer.slice_data(a, m)
 
             sliced_audio.extend(audio_windows)
             sliced_melody.extend(melody_windows)

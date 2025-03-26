@@ -5,7 +5,7 @@ from src.core.styles.base_style import BaseStyle
 
 @dataclass
 class MelodyStyle(BaseStyle):
-    figsize: tuple[int, int] = (12, 6)
+    figsize: tuple[int, int] = (15, 6)
     grid_alpha: float = 0.2
     x_label: str | None = 'Время, с'
     x_ticks_fontsize: int | None = 10
@@ -31,3 +31,6 @@ class MelodyStyle(BaseStyle):
         "A♯": '#4D96FF',
         "B": '#9B72AA',
     })
+    measure_line_color: str = '#3F3F3F'
+    measure_line_width: float = 1.0
+    measure_line_alpha: float = 0.8

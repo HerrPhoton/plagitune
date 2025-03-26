@@ -25,10 +25,12 @@ class Melody:
         wave = self._get_wave(sample_rate)
         sf.write(filename, wave, sample_rate)
 
-    def visualize(self, **style_kwargs) -> None:
+    def visualize(self, ax: plt.Axes | None = None, **style_kwargs) -> plt.Axes:
         """Визуализация мелодии в виде пианоролла.
 
+        :param ax: Axes для отрисовки. Если None, создается новая фигура
         :param style_kwargs: Дополнительные параметры визуализации
+        :return: Axes с отрисованным пианороллом
         """
         style = MelodyStyle(**style_kwargs)
 
@@ -53,18 +55,19 @@ class Melody:
         max_midi = min(127, max_midi + padding)
 
         pitches = []
-
         for midi_num in range(int(min_midi), int(max_midi) + 1):
             octave = (midi_num // 12) - 1
             note_idx = midi_num % 12
             pitches.append(f"{Note.PITCH_LABELS[note_idx]}{octave}")
 
-        fig, ax = plt.subplots(figsize=style.figsize)
+        if ax is None:
+            fig, ax = plt.subplots(figsize=style.figsize)
+            fig.patch.set_facecolor(style.background_color)
+
         ax.set_facecolor(style.background_color)
-        fig.patch.set_facecolor(style.background_color)
 
         for i in range(len(pitches)):
-            plt.axhline(
+            ax.axhline(
                 y=i,
                 color=style.lines_color,
                 linestyle=style.lines_linestyle,
@@ -75,14 +78,13 @@ class Melody:
         current_time = 0
 
         for note in self._notes:
-            if not note.is_rest:
 
+            if not note.is_rest:
                 note_name = note.note_name
 
                 if note_name in pitches:
                     pitch_idx = pitches.index(note_name)
                     duration = self._beats_to_seconds(note._duration)
-
                     note_color = style.note_gradient[note_name[:-1]]
 
                     rect = Rectangle(
@@ -98,20 +100,38 @@ class Melody:
 
             current_time += self._beats_to_seconds(note._duration)
 
-        plt.yticks(range(len(pitches)), pitches, fontsize=style.y_ticks_fontsize, color=style.text_color)
-        plt.xticks(fontsize=style.x_ticks_fontsize, color=style.text_color)
-        plt.xlabel(style.x_label, color=style.text_color)
-        plt.xlim(-0.1, self.duration + 0.1)
-        plt.ylim(-1, len(pitches))
+        beats_per_measure = 4
+        measure_duration = self._beats_to_seconds(beats_per_measure)
+        num_measures = int(np.ceil(self.duration / measure_duration))
 
-        plt.grid(True, axis='x', linestyle=style.grid_linestyle, alpha=style.grid_alpha, color=style.grid_color)
+        for measure in range(num_measures + 1):
+            measure_time = measure * measure_duration
+            ax.axvline(
+                x=measure_time,
+                color=style.measure_line_color,
+                linestyle='-',
+                linewidth=style.measure_line_width,
+                alpha=style.measure_line_alpha,
+                zorder=1
+            )
+
+        ax.set_yticks(range(len(pitches)))
+        ax.set_yticklabels(pitches, fontsize=style.y_ticks_fontsize, color=style.text_color)
+        ax.tick_params(axis='x', labelsize=style.x_ticks_fontsize, colors=style.text_color)
+
+        if style.x_label:
+            ax.set_xlabel(style.x_label, color=style.text_color)
+
+        ax.set_xlim(-0.1, self.duration + 0.1)
+        ax.set_ylim(-1, len(pitches))
 
         for spine in ax.spines.values():
             spine.set_color(style.grid_color)
 
-        plt.title(style.title, fontsize=style.title_fontsize, color=style.text_color)
-        plt.tight_layout()
-        plt.show()
+        if style.title:
+            ax.set_title(style.title, fontsize=style.title_fontsize, color=style.text_color)
+
+        return ax
 
     def get_freqs(self) -> list[float]:
         """Возвращает частоты нот в мелодии.
@@ -195,8 +215,14 @@ class Melody:
         """
         midi_data = pretty_midi.PrettyMIDI(str(midi_path))
         tempo_value = int(midi_data.get_tempo_changes()[1])
-
         quarter_length = 60.0 / tempo_value
+
+        def quantize_duration(duration: float) -> float:
+
+            if abs(duration - 0.33) < 0.05:
+                return 0.33
+
+            return max(0.25, round(duration * 4) / 4)
 
         notes = []
         if midi_data.instruments:
@@ -206,14 +232,15 @@ class Melody:
                 current_time = midi_notes[0].start
 
                 for midi_note in midi_notes:
-
                     if midi_note.start > current_time:
-                        rest_duration = (midi_note.start - current_time) / quarter_length
-                        notes.append(Note(None, rest_duration))
+                        rest_beats = (midi_note.start - current_time) / quarter_length
+                        rest_beats = quantize_duration(rest_beats)
+                        notes.append(Note(None, rest_beats))
 
-                    note_duration = (midi_note.end - midi_note.start) / quarter_length
+                    note_beats = (midi_note.end - midi_note.start) / quarter_length
+                    note_beats = quantize_duration(note_beats)
                     note_name = pretty_midi.note_number_to_name(midi_note.pitch).replace('#', "♯")
-                    notes.append(Note(note_name, note_duration))
+                    notes.append(Note(note_name, note_beats))
 
                     current_time = midi_note.end
 

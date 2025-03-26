@@ -47,7 +47,6 @@ class MelodyPipeline(torch.nn.Module):
 
     def forward(self, audio: Audio, melody: Melody) -> tuple[list[Tensor], ...]:
 
-        spectrogram = self.audio_pipeline._get_spectrogram(audio)
         label = self._get_label(melody)
 
         spectrogram = self.audio_pipeline.forward(audio)
