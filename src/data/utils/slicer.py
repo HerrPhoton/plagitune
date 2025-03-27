@@ -132,13 +132,13 @@ class Slicer:
 
         note_positions = []
         current_beat = 0.0
-        for note in melody._notes:
+        for note in melody.notes:
             note_positions.append({
                 'start': current_beat,
-                'end': current_beat + note._duration,
+                'end': current_beat + note.duration,
                 'note': note
             })
-            current_beat += note._duration
+            current_beat += note.duration
 
         total_beats = current_beat
         current_window_start = 0.0
@@ -164,14 +164,14 @@ class Slicer:
                         rest_duration = start_in_window - current_position
                         window_notes.append(Note(None, rest_duration))
 
-                    window_notes.append(Note(note_info['note']._note, duration_in_window))
+                    window_notes.append(Note(note_info['note'].note, duration_in_window))
                     current_position = end_in_window
 
             if current_position < slice_beats:
                 window_notes.append(Note(None, slice_beats - current_position))
 
             if window_notes:
-                sliced_melody.append(Melody(window_notes, melody._tempo))
+                sliced_melody.append(Melody(window_notes, melody.tempo))
 
             current_window_start += hop_beats
 
@@ -185,7 +185,7 @@ class Slicer:
         :return: Кортеж из списков нарезанных аудио и мелодий
         """
         # Рассчитываем параметры нарезки
-        samples_per_beat = int(audio.sample_rate * 60 / melody._tempo)
+        samples_per_beat = int(audio.sample_rate * 60 / melody.tempo)
         samples_per_measure = samples_per_beat * self.beats_per_measure
         samples_per_slice = samples_per_measure * self.measures_per_slice
         hop_samples = self.slice_config.hop_size * samples_per_measure
@@ -196,13 +196,13 @@ class Slicer:
         # Подготавливаем информацию о нотах
         note_positions = []
         current_beat = 0.0
-        for note in melody._notes:
+        for note in melody.notes:
             note_positions.append({
                 'start': current_beat,
-                'end': current_beat + note._duration,
+                'end': current_beat + note.duration,
                 'note': note
             })
-            current_beat += note._duration
+            current_beat += note.duration
 
         total_beats = current_beat
         total_samples = audio.waveform.shape[1]
@@ -210,8 +210,8 @@ class Slicer:
         # Проверяем, что длительности примерно совпадают
         expected_samples = int(total_beats * samples_per_beat)
         if abs(total_samples - expected_samples) > samples_per_beat:
-            print(f"Warning: Audio ({total_samples/audio.sample_rate:.2f}s) and melody "
-                  f"({total_beats * 60/melody._tempo:.2f}s) durations differ significantly")
+            print(f"Warning: Audio {audio.audio_path.name} ({total_samples/audio.sample_rate:.2f}s) and melody "
+                  f"({total_beats * 60/melody.tempo:.2f}s) durations differ significantly")
 
         sliced_audio = []
         sliced_melody = []
@@ -219,16 +219,22 @@ class Slicer:
         current_beat = 0.0
 
         while current_sample < total_samples and current_beat < total_beats:
-            # Нарезаем аудио
-            end_sample = min(current_sample + samples_per_slice, total_samples)
-            samples_remaining = end_sample - current_sample
+            window_end_beat = current_beat + slice_beats
 
+            # Вычисляем точное количество сэмплов для текущего окна мелодии
+            exact_samples_needed = int((window_end_beat - current_beat) * samples_per_beat)
+            end_sample = current_sample + exact_samples_needed
+
+            # Создаем окно точного размера для текущего фрагмента мелодии
             window = torch.full(
                 (1, samples_per_slice),
                 self.slice_config.audio_pad_value,
                 dtype=audio.waveform.dtype
             )
-            window[:, :samples_remaining] = audio.waveform[:, current_sample:end_sample]
+
+            # Копируем только нужное количество сэмплов
+            samples_to_copy = min(exact_samples_needed, total_samples - current_sample)
+            window[:, :samples_to_copy] = audio.waveform[:, current_sample:current_sample + samples_to_copy]
 
             window_audio = deepcopy(audio)
             window_audio.waveform = window
@@ -250,25 +256,34 @@ class Slicer:
                 end_in_window = min(slice_beats, note_info['end'] - current_beat)
                 duration_in_window = end_in_window - start_in_window
 
+                # Пропускаем слишком короткие ноты
+                if duration_in_window < 0.25:
+                    continue
+
                 if duration_in_window > 0:
+                    # Если есть промежуток между текущей позицией и началом ноты,
+                    # добавляем паузу только если она не слишком короткая
                     if start_in_window > current_position:
                         rest_duration = start_in_window - current_position
-                        window_notes.append(Note(None, rest_duration))
+                        if rest_duration >= 0.25:
+                            window_notes.append(Note(None, rest_duration))
+                            current_position += rest_duration
 
-                    window_notes.append(Note(note_info['note']._note, duration_in_window))
+                    window_notes.append(Note(note_info['note'].note, duration_in_window))
                     current_position = end_in_window
 
             # Добавляем паузу в конец окна мелодии, если нужно
-            if current_position < slice_beats:
-                window_notes.append(Note(None, slice_beats - current_position))
+            remaining_duration = slice_beats - current_position
+            if remaining_duration >= 0.25:
+                window_notes.append(Note(None, remaining_duration))
 
-            sliced_melody.append(Melody(window_notes, melody._tempo))
+            if window_notes:
+                sliced_melody.append(Melody(window_notes, melody.tempo))
 
-            # Проверяем, достигли ли мы конца
-            if end_sample == total_samples or current_beat + hop_beats >= total_beats:
+            if current_beat + hop_beats >= total_beats:
                 break
 
-            current_sample += hop_samples
             current_beat += hop_beats
+            current_sample = int(current_beat * samples_per_beat)
 
         return sliced_audio, sliced_melody

@@ -22,7 +22,7 @@ class MelodyNet(nn.Module):
             seq_len_max=PipelineConfig.seq_len_max,
         )
 
-        self.resnet = models.resnet50(pretrained=True)
+        self.resnet = models.resnet50(weights=None)
         self.resnet.conv1 = nn.Conv2d(
             1,
             self.resnet.conv1.out_channels,

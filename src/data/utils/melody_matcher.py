@@ -116,7 +116,7 @@ class MelodyMatcher:
         :param str title: Заголовок для визуализации
         :param MatcherStyle style: Стиль для визуализации
         """
-        midi_numbers = [note.midi_number for note in melody._notes if not note.is_rest]
+        midi_numbers = [note.midi_number for note in melody.notes if not note.is_rest]
         min_midi = min(midi_numbers) if midi_numbers else 60
         max_midi = max(midi_numbers) if midi_numbers else 71
 
@@ -128,7 +128,7 @@ class MelodyMatcher:
         for midi_num in range(int(min_midi), int(max_midi) + 1):
             octave = (midi_num // 12) - 1
             note_idx = midi_num % 12
-            pitches.append(f"{melody._notes[0].PITCH_LABELS[note_idx]}{octave}")
+            pitches.append(f"{melody.notes[0].PITCH_LABELS[note_idx]}{octave}")
 
         ax.set_facecolor(style.background_color)
 
@@ -144,12 +144,12 @@ class MelodyMatcher:
         current_time = 0
         matched_indices = {idx for pattern in patterns_indices for idx, _ in pattern}
 
-        for i, note in enumerate(melody._notes):
+        for i, note in enumerate(melody.notes):
             if not note.is_rest:
                 note_name = note.note_name
                 if note_name in pitches:
                     pitch_idx = pitches.index(note_name)
-                    duration = melody._beats_to_seconds(note._duration)
+                    duration = melody._beats_to_seconds(note.duration)
 
                     color = 'red' if i in matched_indices else style.note_gradient[note_name[:-1]]
 
@@ -164,7 +164,7 @@ class MelodyMatcher:
                     )
                     ax.add_patch(rect)
 
-            current_time += melody._beats_to_seconds(note._duration)
+            current_time += melody._beats_to_seconds(note.duration)
 
         ax.set_yticks(range(len(pitches)), pitches, fontsize=style.y_ticks_fontsize, color=style.text_color)
 

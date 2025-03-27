@@ -74,19 +74,23 @@ class MelodyInference:
             seq_len_max=self.pipeline_config.seq_len_max,
         )
 
-    def extract_melody(self, audio: str | Path | Audio, tempo: int) -> Melody:
+    def extract_melody(self, audio: str | Path, tempo: int | None = None) -> Melody:
         """Извлечение мелодии из аудиофайла.
 
         :param str | Path | Audio audio: Аудиофайл или путь к аудиофайлу
         :return Melody: Извлеченная мелодия
         """
-        if isinstance(audio, (str, Path)):
-            dataset = AudioDataset.from_path(Path(audio))
+        audio = Audio(audio)
 
-        elif isinstance(audio, Audio):
-            dataset = AudioDataset([audio])
+        if tempo is None:
+            tempo = audio.get_tempo()
 
-        dataloader = get_dataloader(dataset)
+        dataset = AudioDataset([audio], [tempo])
+
+        dataloader = get_dataloader(
+            dataset,
+            shuffle=False
+        )
 
         all_freqs = []
         all_durations = []

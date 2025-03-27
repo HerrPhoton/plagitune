@@ -104,7 +104,7 @@ class AudioDataset(Dataset):
 
             a.trim_silence()
 
-            audio_slices = self.slicer.slice_audio(a)
+            audio_slices = self.slicer.slice_audio_by_measure(a, a.get_tempo())
             sliced_audio.extend(audio_slices)
 
         return sliced_audio

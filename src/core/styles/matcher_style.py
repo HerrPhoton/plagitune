@@ -6,7 +6,7 @@ from src.core.styles.melody_style import MelodyStyle
 @dataclass
 class MatcherStyle(MelodyStyle):
 
-    figsize: tuple[int, int] = (12, 10)
+    figsize: tuple[int, int] = (15, 10)
 
     match_color: str = '#FF4444'
     match_edge_color: str = '#000000'

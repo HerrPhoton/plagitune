@@ -4,7 +4,7 @@ from dataclasses import dataclass
 @dataclass
 class BaseStyle:
 
-    figsize: tuple[int, int] = (12, 8)
+    figsize: tuple[int, int] = (15, 8)
     background_color: str = '#1A1A1A'
     text_color: str = '#FFFFFF'
     grid_visible: bool = True

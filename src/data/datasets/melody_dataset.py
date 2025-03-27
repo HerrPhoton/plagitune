@@ -1,3 +1,4 @@
+from copy import deepcopy
 from pathlib import Path
 
 from tqdm import tqdm
@@ -122,41 +123,40 @@ class MelodyDataset(Dataset):
 
         for a, m in tqdm(zip(audio, melody), total=len(audio), desc="Slicing audio and melody"):
 
-            a.trim_silence()
+            audio_file = deepcopy(a)
+            melody_file = deepcopy(m)
 
-            target_duration = min(a.duration, m.duration)
+            audio_file.trim_silence()
 
-            if a.duration > target_duration:
-                samples_to_keep = int(target_duration * a.sample_rate)
-                a.waveform = a.waveform[:, :samples_to_keep]
+            target_duration = min(audio_file.duration, melody_file.duration)
 
-            if m.duration > target_duration:
-                total_beats = m._seconds_to_beats(target_duration)
+            if audio_file.duration > target_duration:
+                samples_to_keep = int(target_duration * audio_file.sample_rate)
+                audio_file.waveform = audio_file.waveform[:, :samples_to_keep]
+
+            if melody_file.duration > target_duration:
+                total_beats = melody_file._seconds_to_beats(target_duration)
                 accumulated_beats = 0.0
                 new_notes = []
 
-                for note in m._notes:
+                for note in melody_file.notes:
                     remaining_beats = total_beats - accumulated_beats
 
                     if remaining_beats <= 0:
                         break
 
-                    if accumulated_beats + note._duration <= total_beats:
-                        # Нота помещается целиком
+                    if accumulated_beats + note.duration <= total_beats:
                         new_notes.append(note)
-                        accumulated_beats += note._duration
+                        accumulated_beats += note.duration
+
                     else:
-                        # Обрезаем последнюю ноту
-                        trimmed_note = Note(note._note, max(0.25, remaining_beats))
+                        trimmed_note = Note(note.note, remaining_beats)
                         new_notes.append(trimmed_note)
                         break
 
-                m._notes = new_notes
+                melody_file.notes = new_notes
 
-            #audio_windows = self.slicer.slice_audio_by_measure(a, m._tempo)
-            #melody_windows = self.slicer.slice_melody_by_measure(m)
-
-            audio_windows, melody_windows = self.slicer.slice_data(a, m)
+            audio_windows, melody_windows = self.slicer.slice_data(audio_file, melody_file)
 
             sliced_audio.extend(audio_windows)
             sliced_melody.extend(melody_windows)

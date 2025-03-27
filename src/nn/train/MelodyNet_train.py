@@ -289,12 +289,12 @@ class PLMelodyNet(L.LightningModule):
 
         return loss.sum() / mask.sum()
 
-    def _compute_denormalized_metrics(self, preds: tuple[Tensor, Tensor, Tensor], targets: tuple[Tensor, Tensor, Tensor], metrics_dict: dict):
+    def _compute_denormalized_metrics(self, preds: tuple[Tensor, Tensor, Tensor], targets: tuple[Tensor, Tensor, Tensor], metrics_dict: nn.ModuleDict) -> None:
         """Вычисляет метрики для денормализованных значений.
 
-        :param preds: Предсказания модели
-        :param targets: Целевые значения
-        :param metrics_dict: Словарь с метриками
+        :param Tuple[Tensor, Tensor, Tensor] preds: Предсказания модели
+        :param Tuple[Tensor, Tensor, Tensor] targets: Целевые значения
+        :param nn.ModuleDict metrics_dict: Словарь с метриками
         """
         preds_freqs = preds[0][:, :targets[0].shape[1]]
         preds_durations = preds[1][:, :targets[1].shape[1]]

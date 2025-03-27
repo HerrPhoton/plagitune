@@ -40,6 +40,10 @@ class Audio:
         if self.waveform.shape[0] > 1:
             self.waveform = torch.mean(self.waveform, dim=0, keepdim=True)
 
+    def get_tempo(self) -> int:
+        tempo, _ = librosa.beat.beat_track(y=self.waveform.squeeze(0).numpy(), sr=self.sample_rate)
+        return round(tempo[0])
+
     def visualize(self, ax: plt.Axes | None = None, **style_kwargs) -> plt.Axes:
         """Визуализирует волновую форму аудиосигнала.
 

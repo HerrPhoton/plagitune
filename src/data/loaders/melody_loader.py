@@ -14,7 +14,7 @@ def collate_fn(batch: list[tuple[list[Tensor], list[tuple[Tensor, ...]]]]) -> tu
                  (input_spec, freqs, classes, offsets, target_masks, durations)
     :return: Батч подготовленных данных
     """
-    spectrograms, intervals, durations, seq_lens = zip(*batch)
+    spectrograms, freqs, durations, seq_lens = zip(*batch)
 
     def prepare_sequences(sequences: list[Tensor]) -> Tensor:
         return pad_sequence(
@@ -24,13 +24,13 @@ def collate_fn(batch: list[tuple[list[Tensor], list[tuple[Tensor, ...]]]]) -> tu
         )
 
     spectrograms_batch = torch.stack(spectrograms)
-    intervals_batch = prepare_sequences(intervals)
+    freqs_batch = prepare_sequences(freqs)
     durations_batch = prepare_sequences(durations)
     seq_lengths_batch = torch.stack(seq_lens)
 
     return (
         spectrograms_batch,
-        intervals_batch,
+        freqs_batch,
         durations_batch,
         seq_lengths_batch
     )
