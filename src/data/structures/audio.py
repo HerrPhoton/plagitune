@@ -5,6 +5,7 @@ import torch
 import librosa
 import torchaudio
 import matplotlib.pyplot as plt
+import noisereduce as nr
 
 from src.core.styles.waveform_style import WaveformStyle
 
@@ -39,6 +40,29 @@ class Audio:
         """Преобразует стерео аудио в моно."""
         if self.waveform.shape[0] > 1:
             self.waveform = torch.mean(self.waveform, dim=0, keepdim=True)
+
+    def normalize(self) -> None:
+        """Нормализует амплитуду аудиосигнала в диапазон [-1, 1]."""
+        max_val = torch.max(torch.abs(self.waveform))
+    
+        if max_val > 0:
+            self.waveform = self.waveform / max_val
+
+    def denoise(self, prop_decrease: float = 0.8) -> None:
+        """Применяет шумоподавление на основе спектрального вычитания.
+        
+        :param float prop_decrease: Степень фильтрации от 0 до 1 
+        """
+        waveform_numpy = self.waveform.numpy()
+        waveform_numpy = np.where(waveform_numpy == 0, 1e-6, waveform_numpy)
+
+        reduced_noise = nr.reduce_noise(
+            y=waveform_numpy, 
+            sr=self.sample_rate,
+            prop_decrease=prop_decrease,
+            n_fft=2048
+        )
+        self.waveform = torch.from_numpy(reduced_noise)
 
     def get_tempo(self) -> int:
         tempo, _ = librosa.beat.beat_track(y=self.waveform.squeeze(0).numpy(), sr=self.sample_rate)
@@ -110,10 +134,3 @@ class Audio:
         """
         return self.waveform.shape[1] / self.sample_rate
 
-    @property
-    def num_channels(self) -> int:
-        """Возвращает количество каналов аудио.
-
-        :return int: Количество каналов
-        """
-        return self.waveform.shape[0]

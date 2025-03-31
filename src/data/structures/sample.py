@@ -12,6 +12,11 @@ class Sample:
         self.audio = audio
         self.melody = melody
 
+        # self.audio.to_mono()
+        # self.audio.resample(44100)
+        # self.audio.denoise(0.8)
+        # self.audio.normalize()
+
     def visualize_with_waveform(self, ax: plt.Axes | None = None, **style_kwargs) -> plt.Axes:
         """Визуализация образца.
 
@@ -44,13 +49,13 @@ class Sample:
         :return: Axes с отрисованным образцом
         """
         style = SampleStyle(**style_kwargs)
-
+        
         spectrogram = Spectrogram.from_audio(self.audio)
 
         fig, ax = plt.subplots(2, 1, figsize=style.figsize)
         fig.patch.set_facecolor(style.background_color)
 
-        spectrogram.visualize(ax=ax[0], **style_kwargs)
-        self.melody.visualize(ax=ax[1], **style_kwargs)
+        spectrogram.visualize(ax=ax[0], color_bar=False)
+        self.melody.visualize(ax=ax[1])
 
         return ax

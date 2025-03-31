@@ -80,12 +80,12 @@ class MelodyInference:
         :param str | Path | Audio audio: Аудиофайл или путь к аудиофайлу
         :return Melody: Извлеченная мелодия
         """
-        audio = Audio(audio)
+        # audio = Audio(audio)
 
-        if tempo is None:
-            tempo = audio.get_tempo()
+        # if tempo is None:
+        #     tempo = audio.get_tempo()
 
-        dataset = AudioDataset([audio], [tempo])
+        dataset = audio#AudioDataset([audio], [tempo])
 
         dataloader = get_dataloader(
             dataset,

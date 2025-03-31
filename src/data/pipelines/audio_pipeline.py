@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import torch
 from torch import Tensor
 from torchaudio.transforms import AmplitudeToDB
@@ -25,18 +27,17 @@ class AudioPipeline(torch.nn.Module):
 
     def forward(self, audio: Audio) -> Tensor:
 
-        self._preprocess_audio(audio)
-        spectrogram = self._get_spectrogram(audio)
+        audio_copy = deepcopy(audio)
+        audio_copy = self._preprocess_audio(audio_copy)
 
+        spectrogram = self._get_spectrogram(audio_copy)
         spectrogram = self.amplitude_to_db(spectrogram.spectrogram)
-
         spectrogram = torch.nn.functional.interpolate(
             spectrogram.unsqueeze(0),
             size=(128, 256),
             mode='bilinear',
             align_corners=True
         ).squeeze(0)
-
         spectrogram = self.spec_normalizer.transform(spectrogram)
 
         return spectrogram
@@ -45,9 +46,12 @@ class AudioPipeline(torch.nn.Module):
         """Предобрабатывает аудио.
 
         :param Audio audio: Аудио.
+        :return Audio: Обработанное аудио 
         """
-        audio.resample(self.spectrogram_config.sample_rate)
         audio.to_mono()
+        audio.resample(self.spectrogram_config.sample_rate)
+        audio.denoise()
+        audio.normalize()
 
         return audio
 
