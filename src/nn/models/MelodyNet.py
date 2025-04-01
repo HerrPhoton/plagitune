@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-import torchvision.models as models
 from torch import Tensor
+from torchvision.models import resnet50
 
 from src.data.utils.label_normalizer import LabelNormalizer
 from src.data.pipelines.configs.slice_config import SliceConfig
@@ -22,7 +22,7 @@ class MelodyNet(nn.Module):
             seq_len_max=PipelineConfig.seq_len_max,
         )
 
-        self.resnet = models.resnet50(weights=None)
+        self.resnet = resnet50(weights=None)
         self.resnet.conv1 = nn.Conv2d(
             1,
             self.resnet.conv1.out_channels,
@@ -31,21 +31,40 @@ class MelodyNet(nn.Module):
             padding=self.resnet.conv1.padding,
             bias=False if self.resnet.conv1.bias is None else True
         )
-
         self.resnet = nn.Sequential(*list(self.resnet.children())[:-2])
 
-        self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.avg_pool = nn.AdaptiveAvgPool2d((1, None))
+
+        self.lstm = nn.LSTM(
+            input_size=2048,
+            hidden_size=512,
+            num_layers=3,
+            dropout=0.3,
+            bidirectional=True,
+            batch_first=True
+        )
 
         self.freqs_head = nn.Sequential(
-            nn.Linear(2048, 64),
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(512, 64),
             nn.Sigmoid()
         )
+
         self.duration_head = nn.Sequential(
-            nn.Linear(2048, 64),
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(512, 64),
             nn.Sigmoid()
         )
+
         self.seq_len_head = nn.Sequential(
-            nn.Linear(2048, 1),
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(512, 1),
             nn.Sigmoid()
         )
 
@@ -54,11 +73,17 @@ class MelodyNet(nn.Module):
         features = self.resnet(x)
 
         features = self.avg_pool(features)
-        features = features.flatten(1)
+        features = features.squeeze(2)
+        features = features.transpose(1, 2)
 
-        freqs = self.freqs_head(features)
-        durations = self.duration_head(features)
-        seq_len = self.seq_len_head(features)
+        self.lstm.flatten_parameters()
+
+        lstm_out, _ = self.lstm(features)
+        lstm_out = lstm_out[:, -1, :]
+
+        freqs = self.freqs_head(lstm_out)
+        durations = self.duration_head(lstm_out)
+        seq_len = self.seq_len_head(lstm_out)
 
         return freqs, durations, seq_len
 

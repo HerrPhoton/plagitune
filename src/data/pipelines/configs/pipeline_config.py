@@ -3,8 +3,8 @@ from dataclasses import dataclass
 
 @dataclass
 class PipelineConfig:
-    mean: float = 1.9168734550476074
-    std: float = 16.744782309728556
+    mean: float = 8.240909576416016
+    std: float = 15.86678615808288
 
 
     f_min: float = 0.0

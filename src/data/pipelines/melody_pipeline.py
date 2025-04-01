@@ -45,7 +45,7 @@ class MelodyPipeline(torch.nn.Module):
             seq_len_max=pipeline_config.seq_len_max,
         )
 
-    def forward(self, audio: Audio, melody: Melody) -> tuple[list[Tensor], ...]:
+    def forward(self, audio: Audio, melody: Melody) -> tuple[Tensor, Tensor, Tensor, Tensor]:
 
         label = self._get_label(melody)
 

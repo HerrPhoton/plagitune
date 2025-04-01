@@ -59,6 +59,8 @@ class AudioDataset(Dataset):
         )
 
         self.sliced_audio = self.slice_audio(self.audio)
+        self.preprocessed_data = self._preprocess_data(self.sliced_audio)
+
 
     def __getitem__(self, idx: int) -> list[Tensor]:
         """Возвращает элемент датасета.
@@ -108,3 +110,16 @@ class AudioDataset(Dataset):
             sliced_audio.extend(audio_slices)
 
         return sliced_audio
+
+    def _preprocess_data(self, audio: list[Audio]) -> list[Tensor]:
+        """Предобрабатывает аудиофайлы.
+
+        :param List[Audio] audio: Аудиофайлы.
+        :return List[Tensor]: Предобработанные аудиофайлы.
+        """
+        preprocessed_data = []
+
+        for a in tqdm(audio, total=len(audio), desc="Preprocessing audio"):
+            preprocessed_data.append(self.pipeline.forward(a))
+
+        return preprocessed_data

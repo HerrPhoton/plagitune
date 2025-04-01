@@ -69,12 +69,13 @@ class MelodyDataset(Dataset):
         )
 
         self.sliced_audio, self.sliced_melody = self.slice_data(self.audio, self.melody)
+        self.preprocessed_data = self._preprocess_data(self.sliced_audio, self.sliced_melody)
 
-    def __getitem__(self, idx: int) -> tuple[Tensor, ...]:
+    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Возвращает элемент датасета.
 
         :param int idx: Индекс элемента
-        :return Tuple[Tensor, ...]:
+        :return Tuple[Tensor, Tensor, Tensor, Tensor]:
             спектрограмма,
             частоты нот,
             классы нот,
@@ -82,7 +83,7 @@ class MelodyDataset(Dataset):
             маска нот,
             длительности нот
         """
-        return self.pipeline.forward(self.sliced_audio[idx], self.sliced_melody[idx])
+        return self.preprocessed_data[idx]
 
     def __len__(self) -> int:
         return len(self.sliced_audio)
@@ -162,3 +163,17 @@ class MelodyDataset(Dataset):
             sliced_melody.extend(melody_windows)
 
         return sliced_audio, sliced_melody
+
+    def _preprocess_data(self, audio: list[Audio], melody: list[Melody]) -> list[tuple[Tensor, Tensor, Tensor, Tensor]]:
+        """Предобрабатывает данные.
+
+        :param List[Audio] audio: Аудиофайлы.
+        :param List[Melody] melody: Мелодии.
+        :return List[Tuple[Tensor, Tensor, Tensor, Tensor]]: Предобработанные данные.
+        """
+        preprocessed_data = []
+
+        for a, m in tqdm(zip(audio, melody), total=len(audio), desc="Preprocessing data"):
+            preprocessed_data.append(self.pipeline.forward(a, m))
+
+        return preprocessed_data

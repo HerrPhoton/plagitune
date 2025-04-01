@@ -1,4 +1,0 @@
-batch_size: 32
-num_workers: 4
-
-model_path: ../models/melody_extractor.pth
