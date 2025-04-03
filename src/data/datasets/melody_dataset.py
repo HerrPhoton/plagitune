@@ -10,63 +10,22 @@ from src.data.structures.note import Note
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
 from src.data.pipelines.melody_pipeline import MelodyPipeline
-from src.data.pipelines.configs.slice_config import SliceConfig
-from src.data.pipelines.configs.melody_config import MelodyConfig
-from src.data.pipelines.configs.pipeline_config import PipelineConfig
-from src.data.pipelines.configs.spectrogram_config import SpectrogramConfig
 
 
 class MelodyDataset(Dataset):
 
-    def __init__(self, audio: list[Audio], melody: list[Melody], **kwargs):
+    def __init__(self, audio: list[Audio], melody: list[Melody]):
         """
         :param List[Audio] audio: Аудиофайлы.
         :param List[Melody] melody: Мелодии.
-        :param **kwargs: Параметры пайплайна
         """
         super().__init__()
 
         self.audio = audio
         self.melody = melody
 
-        self.slice_config = SliceConfig(
-            slice_size=kwargs.get('slice_size', SliceConfig.slice_size),
-            hop_size=kwargs.get('hop_size', SliceConfig.hop_size),
-            audio_pad_value=kwargs.get('spec_pad_value', SliceConfig.audio_pad_value),
-            label_pad_value=kwargs.get('label_pad_value', SliceConfig.label_pad_value),
-        )
-        self.melody_config = MelodyConfig(
-            threshold=kwargs.get('threshold', MelodyConfig.threshold),
-        )
-        self.spectrogram_config = SpectrogramConfig(
-            sample_rate=kwargs.get('sample_rate', SpectrogramConfig.sample_rate),
-            win_length=kwargs.get('win_length', SpectrogramConfig.win_length),
-            hop_length=kwargs.get('hop_length', SpectrogramConfig.hop_length),
-            n_fft=kwargs.get('n_fft', SpectrogramConfig.n_fft),
-            n_mels=kwargs.get('n_mels', SpectrogramConfig.n_mels),
-            f_min=kwargs.get('f_min', SpectrogramConfig.f_min),
-            f_max=kwargs.get('f_max', SpectrogramConfig.f_max),
-        )
-        self.pipeline_config = PipelineConfig(
-            mean=kwargs.get('mean', PipelineConfig.mean),
-            std=kwargs.get('std', PipelineConfig.std),
-            f_min=kwargs.get('f_min', PipelineConfig.f_min),
-            f_max=kwargs.get('f_max', PipelineConfig.f_max),
-            dur_min=kwargs.get('dur_min', PipelineConfig.dur_min),
-            dur_max=kwargs.get('dur_max', PipelineConfig.dur_max),
-            seq_len_min=kwargs.get('seq_len_min', PipelineConfig.seq_len_min),
-            seq_len_max=kwargs.get('seq_len_max', PipelineConfig.seq_len_max),
-        )
-
-        self.slicer = Slicer(
-            slice_config=self.slice_config,
-            spectrogram_config=self.spectrogram_config,
-        )
-        self.pipeline = MelodyPipeline(
-            melody_config=self.melody_config,
-            spectrogram_config=self.spectrogram_config,
-            pipeline_config=self.pipeline_config
-        )
+        self.slicer = Slicer()
+        self.pipeline = MelodyPipeline()
 
         self.sliced_audio, self.sliced_melody = self.slice_data(self.audio, self.melody)
         self.preprocessed_data = self._preprocess_data(self.sliced_audio, self.sliced_melody)
@@ -75,13 +34,7 @@ class MelodyDataset(Dataset):
         """Возвращает элемент датасета.
 
         :param int idx: Индекс элемента
-        :return Tuple[Tensor, Tensor, Tensor, Tensor]:
-            спектрограмма,
-            частоты нот,
-            классы нот,
-            относительные смещения нот,
-            маска нот,
-            длительности нот
+        :return Tuple[Tensor, Tensor, Tensor, Tensor]: Cпектрограмма, частоты нот, длительности нот, длина последовательности.
         """
         return self.preprocessed_data[idx]
 
@@ -89,11 +42,10 @@ class MelodyDataset(Dataset):
         return len(self.sliced_audio)
 
     @classmethod
-    def from_path(cls, dataset_path: Path, **kwargs) -> 'MelodyDataset':
+    def from_path(cls, dataset_path: str | Path) -> 'MelodyDataset':
         """Загружает сэмплы из датасета.
 
-        :param Path dataset_path: Путь к директории с датасетом
-        :param **kwargs: Параметры пайплайна
+        :param str | Path dataset_path: Путь к директории с датасетом
         :return MelodyDataset: Датасет
         """
         AUDIO_DIR = Path("audio")
@@ -109,10 +61,10 @@ class MelodyDataset(Dataset):
         audio = [Audio(audio_file) for audio_file in audio_pathes]
         melody = [Melody.from_midi(midi_file) for midi_file in midi_pathes]
 
-        return cls(audio, melody, **kwargs)
+        return cls(audio, melody)
 
     def slice_data(self, audio: list[Audio], melody: list[Melody]) -> tuple[list[Audio], list[Melody]]:
-        """Нарезает аудиофайлы и мелодии на окна фиксированного размера.
+        """Нарезает аудиофайлы и мелодии на окна по 4 такта.
         Выполняет паддинг там, где это необходимо, добавляя паузы в мелодию.
 
         :param List[Audio] audio: Аудиофайлы.
@@ -165,11 +117,11 @@ class MelodyDataset(Dataset):
         return sliced_audio, sliced_melody
 
     def _preprocess_data(self, audio: list[Audio], melody: list[Melody]) -> list[tuple[Tensor, Tensor, Tensor, Tensor]]:
-        """Предобрабатывает данные.
+        """Предобрабатывает аудиофайлы и мелодии.
 
         :param List[Audio] audio: Аудиофайлы.
         :param List[Melody] melody: Мелодии.
-        :return List[Tuple[Tensor, Tensor, Tensor, Tensor]]: Предобработанные данные.
+        :return List[Tuple[Tensor, Tensor, Tensor, Tensor]]: Спектрограмма, частоты нот, длительности нот, длина последовательности.
         """
         preprocessed_data = []
 

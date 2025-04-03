@@ -25,8 +25,8 @@ class MelodyMatcher:
 
         self.matched_patterns: list[MatchedPattern] = []
 
-        self.offsets1 = np.array(melody1.get_offsets())
-        self.offsets2 = np.array(melody2.get_offsets())
+        self.intervals1 = np.array(melody1.get_intervals())
+        self.intervals2 = np.array(melody2.get_intervals())
 
     def find_patterns(self, min_length: int = 7) -> list[MatchedPattern]:
         """Находит все повторяющиеся паттерны минимальной длины
@@ -36,25 +36,26 @@ class MelodyMatcher:
         """
         self.matched_patterns = []
 
-        for i in range(len(self.offsets1) - min_length + 1):
-            for j in range(len(self.offsets2) - min_length + 1):
+        for i in range(len(self.intervals1) - min_length + 1):
+            for j in range(len(self.intervals2) - min_length + 1):
                 length = 0
                 matched_indices = []
 
                 while (
-                    i + length < len(self.offsets1) and
-                    j + length < len(self.offsets2) and
-                    self.offsets1[i + length] == self.offsets2[j + length] and
-                    self.offsets1[i + length] != 0
+                    i + length < len(self.intervals1) and
+                    j + length < len(self.intervals2) and
+                    self.intervals1[i + length] == self.intervals2[j + length]
                 ):
-                    matched_indices.append((i + length, j + length))
+                    matched_indices.append((i + length + 1, j + length + 1))
                     length += 1
 
                 if length >= min_length:
+                    matched_indices.insert(0, (i, j))
+
                     pattern = MatchedPattern(
                         melody1_start=i,
                         melody2_start=j,
-                        length=length,
+                        length=length + 1,
                         notes_indices=matched_indices
                     )
                     self.matched_patterns.append(pattern)

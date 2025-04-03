@@ -3,23 +3,35 @@ import torch.nn as nn
 from torch import Tensor
 from torchvision.models import resnet50
 
+from src.data.configs.slicer_config import SlicerConfig
 from src.data.utils.label_normalizer import LabelNormalizer
-from src.data.pipelines.configs.slice_config import SliceConfig
-from src.data.pipelines.configs.pipeline_config import PipelineConfig
+from src.data.configs.melody_pipeline_config import MelodyPipelineConfig
 
 
 class MelodyNet(nn.Module):
 
-    def __init__(self):
+    def __init__(
+        self,
+        hidden_size: int = 512,
+        num_lstm_layers: int = 2,
+        dropout: float = 0.3,
+        bidirectional: bool = True
+    ):
+        """
+        :param int hidden_size: Размер скрытого состояния LSTM
+        :param int num_lstm_layers: Количество слоев LSTM
+        :param float dropout: Вероятность dropout
+        :param bool bidirectional: Использовать ли двунаправленный LSTM
+        """
         super().__init__()
 
         self.label_normalizer = LabelNormalizer(
-            freq_min=PipelineConfig.f_min,
-            freq_max=PipelineConfig.f_max,
-            dur_min=PipelineConfig.dur_min,
-            dur_max=PipelineConfig.dur_max,
-            seq_len_min=PipelineConfig.seq_len_min,
-            seq_len_max=PipelineConfig.seq_len_max,
+            freq_min=MelodyPipelineConfig.f_min,
+            freq_max=MelodyPipelineConfig.f_max,
+            dur_min=MelodyPipelineConfig.dur_min,
+            dur_max=MelodyPipelineConfig.dur_max,
+            seq_len_min=MelodyPipelineConfig.seq_len_min,
+            seq_len_max=MelodyPipelineConfig.seq_len_max,
         )
 
         self.resnet = resnet50(weights=None)
@@ -37,34 +49,37 @@ class MelodyNet(nn.Module):
 
         self.lstm = nn.LSTM(
             input_size=2048,
-            hidden_size=512,
-            num_layers=3,
-            dropout=0.3,
-            bidirectional=True,
+            hidden_size=hidden_size,
+            num_layers=num_lstm_layers,
+            dropout=dropout if num_lstm_layers > 1 else 0,
+            bidirectional=bidirectional,
             batch_first=True
         )
 
+        lstm_output_size = hidden_size * 2 if bidirectional else hidden_size
+        heads_output_size = SlicerConfig.beats_per_measure * SlicerConfig.measures_per_slice * 4
+
         self.freqs_head = nn.Sequential(
-            nn.Linear(1024, 512),
+            nn.Linear(lstm_output_size, hidden_size),
             nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(512, 64),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_size, heads_output_size),
             nn.Sigmoid()
         )
 
         self.duration_head = nn.Sequential(
-            nn.Linear(1024, 512),
+            nn.Linear(lstm_output_size, hidden_size),
             nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(512, 64),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_size, heads_output_size),
             nn.Sigmoid()
         )
 
         self.seq_len_head = nn.Sequential(
-            nn.Linear(1024, 512),
+            nn.Linear(lstm_output_size, hidden_size),
             nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(512, 1),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_size, 1),
             nn.Sigmoid()
         )
 
@@ -109,11 +124,11 @@ class MelodyNet(nn.Module):
         max_len = max(len(seq) for seq in truncated_freqs)
 
         padded_freqs = torch.stack([
-            torch.nn.functional.pad(seq, (0, max_len - len(seq)), value=SliceConfig.label_pad_value)
+            torch.nn.functional.pad(seq, (0, max_len - len(seq)), value=SlicerConfig.label_pad_value)
             for seq in truncated_freqs
         ])
         padded_durations = torch.stack([
-            torch.nn.functional.pad(seq, (0, max_len - len(seq)), value=SliceConfig.label_pad_value)
+            torch.nn.functional.pad(seq, (0, max_len - len(seq)), value=SlicerConfig.label_pad_value)
             for seq in truncated_durations
         ])
 

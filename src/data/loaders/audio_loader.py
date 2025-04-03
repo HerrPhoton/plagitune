@@ -5,16 +5,16 @@ from torch.utils.data import DataLoader
 from src.data.datasets.audio_dataset import AudioDataset
 
 
-def collate_fn(batch: list[list[Tensor]]) -> Tensor:
-    """Собирает батч из нарезанных семплов.
+def collate_fn(batch: list[Tensor]) -> Tensor:
+    """Собирает батч из окон аудиофайлов.
 
-    :param List[List[Tensor]] batch: Список списков спектрограмм для каждого аудио
-    :return Tensor: Батч подготовленных данных
+    :param List[Tensor] batch: Список спектрограмм.
+    :return Tensor: Батч спектрограмм.
     """
     return torch.stack(batch)
 
 
-def get_dataloader(
+def get_audio_dataloader(
     dataset: AudioDataset,
     batch_size: int = 32,
     shuffle: bool = True,

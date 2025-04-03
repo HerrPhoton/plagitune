@@ -12,7 +12,7 @@ class Note:
 
     @staticmethod
     def quantize_duration(duration: float) -> float:
-        """Возвращает длительность ноты.
+        """Возвращает ближайшую длительность ноты из допустимых длительностей.
 
         :return float: Длительность ноты
         """

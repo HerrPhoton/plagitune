@@ -18,7 +18,7 @@ class SpectrogramNormalizer:
     def fit(self, spectrograms: list[Tensor], batch_size: int = 32, num_workers: int = 4) -> None:
         """Рассчитывает среднее и стандартное отклонение по спектрограммам.
 
-        :param List[Tensor] spectrograms: Список спектрограмм формы [1, freq_bins, time_steps] или [freq_bins, time_steps]
+        :param List[Tensor] spectrograms: Список спектрограмм
         :param int batch_size: Размер батча для обработки
         :param int num_workers: Количество рабочих процессов для загрузки данных
         """
@@ -70,7 +70,7 @@ class SpectrogramNormalizer:
     def transform(self, spectrogram: Tensor) -> Tensor:
         """Нормализует спектрограмму.
 
-        :param Tensor spectrogram: Спектрограмма формы [1, freq_bins, time_steps] или [freq_bins, time_steps]
-        :return Tensor: Нормализованная спектрограмма той же формы
+        :param Tensor spectrogram: Спектрограмма
+        :return Tensor: Нормализованная спектрограмма
         """
         return (spectrogram - self.mean) / (self.std + 1e-8)

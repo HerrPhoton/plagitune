@@ -19,8 +19,8 @@ class Melody:
     def to_wav(self, filename: str, sample_rate: int) -> None:
         """Сохраняет мелодию в WAV файл.
 
-        :param filename (str): Путь к файлу
-        :param sample_rate (int): Частота дискретизации
+        :param str filename: Путь к файлу
+        :param int sample_rate: Частота дискретизации
         """
         wave = self._get_wave(sample_rate)
         sf.write(filename, wave, sample_rate)
@@ -28,7 +28,7 @@ class Melody:
     def visualize(self, ax: plt.Axes | None = None, **style_kwargs) -> plt.Axes:
         """Визуализация мелодии в виде пианоролла.
 
-        :param ax: Axes для отрисовки. Если None, создается новая фигура
+        :param plt.Axes ax: Axes для отрисовки. Если None, создается новая фигура
         :param style_kwargs: Дополнительные параметры визуализации
         :return: Axes с отрисованным пианороллом
         """

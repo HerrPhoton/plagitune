@@ -15,12 +15,13 @@ class LabelNormalizer:
         seq_len_min: float | None = None,
         seq_len_max: float | None = None,
     ):
-        """Инициализация нормализатора.
-
+        """
         :param freq_min: Минимальная частота.
         :param freq_max: Максимальная частота.
         :param dur_min: Минимальная длительность ноты (в долях).
         :param dur_max: Максимальная длительность ноты (в долях).
+        :param seq_len_min: Минимальная длина последовательности.
+        :param seq_len_max: Максимальная длина последовательности.
         """
         self.freq_min = freq_min
         self.freq_max = freq_max
@@ -64,9 +65,8 @@ class LabelNormalizer:
         :param Tensor freqs: Частоты нот
         :param Tensor durations: Длительности нот
         :param Tensor seq_len: Длина последовательности
-        :return: Кортеж нормализованных значений (частоты, длительности, длина)
+        :return Tuple[Tensor, Tensor, Tensor]: Кортеж нормализованных значений (частоты, длительности, длина последовательности)
         """
-        # Логарифмическая нормализация частот в диапазон [0, 1]
         log_freqs = torch.log2(freqs + 1)
         log_freq_min = torch.log2(torch.tensor(self.freq_min + 1))
         log_freq_max = torch.log2(torch.tensor(self.freq_max + 1))
@@ -91,9 +91,8 @@ class LabelNormalizer:
         :param Tensor freqs: Нормализованные частоты
         :param Tensor durations: Нормализованные длительности
         :param Tensor seq_len: Нормализованная длина последовательности
-        :return: Кортеж денормализованных значений
+        :return Tuple[Tensor, Tensor, Tensor]: Кортеж денормализованных значений (частоты, длительности, длина последовательности)
         """
-        # Обратное преобразование логарифмической нормализации
         log_freq_min = torch.log2(torch.tensor(self.freq_min + 1))
         log_freq_max = torch.log2(torch.tensor(self.freq_max + 1))
         log_freqs = freqs * (log_freq_max - log_freq_min) + log_freq_min

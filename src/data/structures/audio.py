@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -17,13 +18,15 @@ class Audio:
         self.audio_path = Path(audio_path)
         self.waveform, self.sample_rate = torchaudio.load(self.audio_path)
 
-    def trim_silence(self, threshold_db: float = 60.0) -> None:
+        warnings.filterwarnings('ignore', category=UserWarning)
+
+    def trim_silence(self, top_db: float = 60) -> None:
         """Обрезает тишину в начале и конце аудио.
 
-        :param float threshold_db: Пороговое значение в децибелах
+        :param float top_db: Порог для опрееления тишины
         """
         waveform_numpy = self.waveform.numpy()
-        trimmed_audio, _ = librosa.effects.trim(waveform_numpy, top_db=threshold_db)
+        trimmed_audio, _ = librosa.effects.trim(waveform_numpy, top_db=top_db)
         self.waveform = torch.from_numpy(trimmed_audio)
 
     def resample(self, target_sample_rate: int) -> None:
@@ -48,10 +51,11 @@ class Audio:
         if max_val > 0:
             self.waveform = self.waveform / max_val
 
-    def denoise(self, prop_decrease: float = 0.2) -> None:
+    def denoise(self, prop_decrease: float = 1.0, n_fft: int = 2048) -> None:
         """Применяет шумоподавление на основе спектрального вычитания.
 
         :param float prop_decrease: Степень фильтрации от 0 до 1
+        :param int n_fft: Размер окна для преобразования Фурье
         """
         waveform_numpy = self.waveform.numpy()
         waveform_numpy = np.where(waveform_numpy == 0, 1e-6, waveform_numpy)
@@ -60,7 +64,7 @@ class Audio:
             y=waveform_numpy,
             sr=self.sample_rate,
             prop_decrease=prop_decrease,
-            n_fft=2048,
+            n_fft=n_fft,
             use_torch=True
         )
         self.waveform = torch.from_numpy(reduced_noise)

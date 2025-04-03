@@ -5,24 +5,22 @@ from torch import Tensor
 from torchaudio.transforms import AmplitudeToDB
 
 from src.data.structures.audio import Audio
+from src.data.configs.audio_config import AudioConfig
 from src.data.structures.spectrogram import Spectrogram
+from src.data.configs.spectrogram_config import SpectrogramConfig
 from src.data.utils.spectrogram_normalizer import SpectrogramNormalizer
-from src.data.pipelines.configs.pipeline_config import PipelineConfig
-from src.data.pipelines.configs.spectrogram_config import SpectrogramConfig
+from src.data.configs.audio_pipeline_config import AudioPipelineConfig
 
 
 class AudioPipeline(torch.nn.Module):
 
-    def __init__(self, spectrogram_config: SpectrogramConfig, pipeline_config: PipelineConfig):
+    def __init__(self):
         super().__init__()
 
-        self.spectrogram_config = spectrogram_config
-
         self.spec_normalizer = SpectrogramNormalizer(
-            mean=pipeline_config.mean,
-            std=pipeline_config.std
+            mean=AudioPipelineConfig.mean,
+            std=AudioPipelineConfig.std
         )
-
         self.amplitude_to_db = AmplitudeToDB()
 
     def forward(self, audio: Audio) -> Tensor:
@@ -34,9 +32,9 @@ class AudioPipeline(torch.nn.Module):
         spectrogram = self.amplitude_to_db(spectrogram.spectrogram)
         spectrogram = torch.nn.functional.interpolate(
             spectrogram.unsqueeze(0),
-            size=(128, 256),
-            mode='bilinear',
-            align_corners=True
+            size=AudioPipelineConfig.interpolate_size,
+            mode=AudioPipelineConfig.interpolate_mode,
+            align_corners=AudioPipelineConfig.interpolate_align_corners
         ).squeeze(0)
         spectrogram = self.spec_normalizer.transform(spectrogram)
 
@@ -46,11 +44,11 @@ class AudioPipeline(torch.nn.Module):
         """Предобрабатывает аудио.
 
         :param Audio audio: Аудио.
-        :return Audio: Обработанное аудио 
+        :return Audio: Обработанное аудио
         """
         audio.to_mono()
-        audio.resample(self.spectrogram_config.sample_rate)
-        audio.denoise()
+        audio.resample(SpectrogramConfig.sample_rate)
+        audio.denoise(AudioConfig.prop_decrease, SpectrogramConfig.n_fft)
         audio.normalize()
 
         return audio
@@ -63,9 +61,9 @@ class AudioPipeline(torch.nn.Module):
         """
         return Spectrogram.from_audio(
             audio=audio,
-            n_mels=self.spectrogram_config.n_mels,
-            hop_length=self.spectrogram_config.hop_length,
-            n_fft=self.spectrogram_config.n_fft,
-            f_min=self.spectrogram_config.f_min,
-            f_max=self.spectrogram_config.f_max
+            n_mels=SpectrogramConfig.n_mels,
+            hop_length=SpectrogramConfig.hop_length,
+            n_fft=SpectrogramConfig.n_fft,
+            f_min=SpectrogramConfig.f_min,
+            f_max=SpectrogramConfig.f_max
         )

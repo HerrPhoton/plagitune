@@ -14,9 +14,9 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 
 from src.nn.models.MelodyNet import MelodyNet
-from src.data.loaders.melody_loader import get_dataloader
+from src.data.configs.slicer_config import SlicerConfig
+from src.data.loaders.melody_loader import get_melody_dataloader
 from src.data.datasets.melody_dataset import MelodyDataset
-from src.data.pipelines.configs.slice_config import SliceConfig
 
 CUR_PATH = Path(__file__).resolve().parent
 torch.set_float32_matmul_precision('high')
@@ -43,7 +43,12 @@ class PLMelodyNet(L.LightningModule):
         self.adamw_params = kwargs.get('adamw_params', {})
         self.sgd_params = kwargs.get('sgd_params', {})
 
-        self.model = MelodyNet()
+        self.model = MelodyNet(
+            hidden_size = int(kwargs['hidden_size']),
+            num_lstm_layers = int(kwargs['num_lstm_layers']),
+            dropout = float(kwargs['dropout']),
+            bidirectional = bool(kwargs['bidirectional'])
+        )
 
         self.masked_loss_fn = nn.MSELoss(reduction='none')
         self.loss_fn = nn.MSELoss(reduction='mean')
@@ -248,9 +253,9 @@ class PLMelodyNet(L.LightningModule):
     ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Вычисляет потери для предсказанных и целевых значений.
 
-        :param Tuple[Tensor, ...] preds: Предсказанные значения
-        :param Tuple[Tensor, ...] targets: Целевые значения
-        :return Tuple[Tensor, ...]: Общая потеря, потеря по частотам, потеря по классам, потеря по смещениям, потеря по длительностям
+        :param Tuple[Tensor, Tensor, Tensor] preds: Предсказанные значения
+        :param Tuple[Tensor, Tensor, Tensor] targets: Целевые значения
+        :return Tuple[Tensor, Tensor, Tensor, Tensor]: Общая потеря, потеря по частотам, потеря по длительностям, потеря по длине последовательности
         """
         predicted_freqs = preds[0].squeeze(1)
         predicted_durations = preds[1].squeeze(1)
@@ -282,7 +287,7 @@ class PLMelodyNet(L.LightningModule):
         if preds.shape[1] > targets.shape[1]:
             preds = preds[:, :targets.shape[1]]
 
-        mask = (targets != SliceConfig.label_pad_value).float()
+        mask = (targets != SlicerConfig.label_pad_value).float()
 
         loss = self.masked_loss_fn(preds, targets)
         loss *= mask
@@ -300,8 +305,8 @@ class PLMelodyNet(L.LightningModule):
         preds_durations = preds[1][:, :targets[1].shape[1]]
         preds_seq_len = preds[2]
 
-        freqs_mask = (targets[0] != SliceConfig.label_pad_value)
-        durations_mask = (targets[1] != SliceConfig.label_pad_value)
+        freqs_mask = (targets[0] != SlicerConfig.label_pad_value)
+        durations_mask = (targets[1] != SlicerConfig.label_pad_value)
 
         denorm_preds_freqs, denorm_preds_durations, denorm_preds_seq_len = self.model.label_normalizer.inverse_transform(
             preds_freqs, preds_durations, preds_seq_len
@@ -369,14 +374,14 @@ if __name__ == "__main__":
             train_dataset = MelodyDataset.from_path(CUR_PATH / config['train_dataset_path'])
             val_dataset = MelodyDataset.from_path(CUR_PATH / config['val_dataset_path'])
 
-            train_loader = get_dataloader(
+            train_loader = get_melody_dataloader(
                 train_dataset,
                 batch_size=batch_size,
                 num_workers=num_workers,
                 persistent_workers=True
             )
 
-            val_loader = get_dataloader(
+            val_loader = get_melody_dataloader(
                 val_dataset,
                 batch_size=batch_size,
                 num_workers=num_workers,
@@ -399,7 +404,7 @@ if __name__ == "__main__":
             model.eval()
 
             test_dataset = MelodyDataset.from_path(CUR_PATH / config['test_dataset_path'])
-            test_loader = get_dataloader(
+            test_loader = get_melody_dataloader(
                 test_dataset,
                 batch_size=batch_size,
                 num_workers=num_workers,

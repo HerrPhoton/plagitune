@@ -6,6 +6,7 @@ import torch
 import librosa
 import torchaudio
 import matplotlib.pyplot as plt
+from torch import Tensor
 
 from src.data.structures.audio import Audio
 from src.core.styles.spectrogram_style import SpectrogramStyle
@@ -15,7 +16,7 @@ class Spectrogram:
 
     def __init__(
         self,
-        waveform: torch.Tensor,
+        waveform: Tensor,
         sample_rate: int,
         n_fft: int = 2048,
         win_length: int | None = None,

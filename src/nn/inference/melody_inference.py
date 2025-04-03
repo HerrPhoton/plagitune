@@ -8,48 +8,16 @@ from src.data.structures.note import Note
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
 from src.nn.train.MelodyNet_train import PLMelodyNet
-from src.data.loaders.audio_loader import get_dataloader
+from src.data.loaders.audio_loader import get_audio_dataloader
+from src.data.configs.slicer_config import SlicerConfig
 from src.data.datasets.audio_dataset import AudioDataset
 from src.data.utils.label_normalizer import LabelNormalizer
-from src.data.pipelines.audio_pipeline import AudioPipeline
-from src.data.pipelines.configs.slice_config import SliceConfig
-from src.data.pipelines.configs.melody_config import MelodyConfig
-from src.data.pipelines.configs.pipeline_config import PipelineConfig
-from src.data.pipelines.configs.spectrogram_config import SpectrogramConfig
+from src.data.configs.melody_pipeline_config import MelodyPipelineConfig
 
 
 class MelodyInference:
 
-    def __init__(self, model_path: str, **kwargs):
-
-        self.slice_config = SliceConfig(
-            slice_size=kwargs.get('slice_size', SliceConfig.slice_size),
-            hop_size=kwargs.get('hop_size', SliceConfig.slice_size),
-            audio_pad_value=kwargs.get('spec_pad_value', SliceConfig.audio_pad_value),
-            label_pad_value=kwargs.get('label_pad_value', SliceConfig.label_pad_value),
-        )
-        self.melody_config = MelodyConfig(
-            threshold=kwargs.get('threshold', MelodyConfig.threshold),
-        )
-        self.spectrogram_config = SpectrogramConfig(
-            sample_rate=kwargs.get('sample_rate', SpectrogramConfig.sample_rate),
-            win_length=kwargs.get('win_length', SpectrogramConfig.win_length),
-            hop_length=kwargs.get('hop_length', SpectrogramConfig.hop_length),
-            n_fft=kwargs.get('n_fft', SpectrogramConfig.n_fft),
-            n_mels=kwargs.get('n_mels', SpectrogramConfig.n_mels),
-            f_min=kwargs.get('f_min', SpectrogramConfig.f_min),
-            f_max=kwargs.get('f_max', SpectrogramConfig.f_max),
-        )
-        self.pipeline_config = PipelineConfig(
-            mean=kwargs.get('mean', PipelineConfig.mean),
-            std=kwargs.get('std', PipelineConfig.std),
-            f_min=kwargs.get('f_min', PipelineConfig.f_min),
-            f_max=kwargs.get('f_max', PipelineConfig.f_max),
-            dur_min=kwargs.get('dur_min', PipelineConfig.dur_min),
-            dur_max=kwargs.get('dur_max', PipelineConfig.dur_max),
-            seq_len_min=kwargs.get('seq_len_min', PipelineConfig.seq_len_min),
-            seq_len_max=kwargs.get('seq_len_max', PipelineConfig.seq_len_max),
-        )
+    def __init__(self, model_path: str):
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -57,21 +25,14 @@ class MelodyInference:
         self.model.to(self.device)
         self.model.eval()
 
-        self.slicer = Slicer(
-            slice_config=self.slice_config,
-            spectrogram_config=self.spectrogram_config
-        )
-        self.audio_pipeline = AudioPipeline(
-            spectrogram_config=self.spectrogram_config,
-            pipeline_config=self.pipeline_config
-        )
+        self.slicer = Slicer(hop_beats=SlicerConfig.beats_per_measure)
         self.label_normalizer = LabelNormalizer(
-            freq_min=self.pipeline_config.f_min,
-            freq_max=self.pipeline_config.f_max,
-            dur_min=self.pipeline_config.dur_min,
-            dur_max=self.pipeline_config.dur_max,
-            seq_len_min=self.pipeline_config.seq_len_min,
-            seq_len_max=self.pipeline_config.seq_len_max,
+            freq_min=MelodyPipelineConfig.f_min,
+            freq_max=MelodyPipelineConfig.f_max,
+            dur_min=MelodyPipelineConfig.dur_min,
+            dur_max=MelodyPipelineConfig.dur_max,
+            seq_len_min=MelodyPipelineConfig.seq_len_min,
+            seq_len_max=MelodyPipelineConfig.seq_len_max,
         )
 
     def extract_melody(self, audio: str | Path, tempo: int | None = None) -> Melody:
@@ -80,14 +41,16 @@ class MelodyInference:
         :param str | Path | Audio audio: Аудиофайл или путь к аудиофайлу
         :return Melody: Извлеченная мелодия
         """
-        # audio = Audio(audio)
+        audio = Audio(audio)
 
-        # if tempo is None:
-        #     tempo = audio.get_tempo()
+        if tempo is None:
+            tempo = audio.get_tempo()
 
-        dataset = audio#AudioDataset([audio], [tempo])
+        dataset = AudioDataset([audio])
+        dataset.sliced_audio = self.slicer.slice_audio_by_measure(audio, tempo)
+        dataset.preprocessed_data = dataset._preprocess_data(dataset.sliced_audio)
 
-        dataloader = get_dataloader(
+        dataloader = get_audio_dataloader(
             dataset,
             shuffle=False
         )
@@ -101,7 +64,7 @@ class MelodyInference:
                 freqs, durations = self.model.predict_step(spectrograms, i)
 
                 for j in range(freqs.size(0)):
-                    mask = (freqs[j] != SliceConfig.label_pad_value)
+                    mask = (freqs[j] != SlicerConfig.label_pad_value)
                     all_freqs.append(freqs[j][mask])
                     all_durations.append(durations[j][mask])
 
@@ -113,10 +76,10 @@ class MelodyInference:
         merged_predictions = (merged_freqs, merged_durations)
         return self._predictions_to_melody(merged_predictions, tempo)
 
-    def _predictions_to_melody(self, predictions: tuple[Tensor, ...], tempo: int) -> Melody:
+    def _predictions_to_melody(self, predictions: tuple[Tensor, Tensor], tempo: int) -> Melody:
         """Преобразование предсказаний в объект Melody.
 
-        :param Tuple[Tensor, ...] predictions: Кортеж предсказаний (частоты, классы, смещения, длительности)
+        :param Tuple[Tensor, Tensor] predictions: Кортеж предсказаний (частоты, длительности)
         :return Melody: Объект Melody
         """
         freqs, durations = predictions
