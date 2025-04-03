@@ -220,31 +220,50 @@ class PLMelodyNet(L.LightningModule):
         if self.scheduler_type == 'reduce_on_plateau':
             self.scheduler = ReduceLROnPlateau(
                 self.optimizer,
-                patience = int(self.reduce_on_plateau_params['patience']),
-                min_lr = float(self.reduce_on_plateau_params['min_lr']),
-                threshold = float(self.reduce_on_plateau_params['threshold'])
+                patience=int(self.reduce_on_plateau_params['patience']),
+                min_lr=float(self.reduce_on_plateau_params['min_lr']),
+                threshold=float(self.reduce_on_plateau_params['threshold'])
             )
+            return {
+                "optimizer": self.optimizer,
+                "lr_scheduler": {
+                    "scheduler": self.scheduler,
+                    "monitor": "val_loss",
+                    "interval": "epoch",
+                    "frequency": 1
+                }
+            }
 
         elif self.scheduler_type == 'cosine_annealing':
             self.scheduler = CosineAnnealingLR(
                 self.optimizer,
-                T_max = int(self.cosine_annealing_params['T_max']),
-                eta_min = float(self.cosine_annealing_params['eta_min'])
+                T_max=int(self.cosine_annealing_params['T_max']),
+                eta_min=float(self.cosine_annealing_params['eta_min'])
             )
+            return {
+                "optimizer": self.optimizer,
+                "lr_scheduler": {
+                    "scheduler": self.scheduler,
+                    "interval": "epoch",
+                    "frequency": 1
+                }
+            }
 
         elif self.scheduler_type == 'one_cycle':
             self.scheduler = OneCycleLR(
                 self.optimizer,
-                max_lr = float(self.one_cycle_params['max_lr']),
-                steps_per_epoch = int(self.one_cycle_params['steps_per_epoch']),
-                epochs = int(self.one_cycle_params['epochs'])
+                max_lr=float(self.one_cycle_params['max_lr']),
+                steps_per_epoch=int(self.one_cycle_params['steps_per_epoch']),
+                epochs=int(self.one_cycle_params['epochs'])
             )
-
-        return {
-            "optimizer": self.optimizer,
-            "lr_scheduler": self.scheduler,
-            "monitor": "val_loss"
-        }
+            return {
+                "optimizer": self.optimizer,
+                "lr_scheduler": {
+                    "scheduler": self.scheduler,
+                    "interval": "step",
+                    "frequency": 1
+                }
+            }
 
     def _compute_losses(
         self,
@@ -352,7 +371,7 @@ if __name__ == "__main__":
 
     CUR_PATH = Path(__file__).parent
 
-    with open(CUR_PATH / "../configs/train.yaml") as stream:
+    with open(CUR_PATH / "../configs/MelodyNet_train.yaml") as stream:
         config = yaml.safe_load(stream)
 
         batch_size = int(config['batch_size'])
@@ -366,7 +385,7 @@ if __name__ == "__main__":
 
             model = PLMelodyNet(**config)
 
-            logger = TensorBoardLogger(save_dir = CUR_PATH / "..", name="logs", version=args.name)
+            logger = TensorBoardLogger(save_dir = CUR_PATH / ".." / "logs", name="MelodyNet", version=args.name)
             lr_monitor = LearningRateMonitor(logging_interval = 'epoch')
             best_checkpoint = ModelCheckpoint(filename = "best", monitor = 'val_loss', mode = "min")
             last_checkpoint = ModelCheckpoint(filename = "last", monitor = 'epoch', mode = "max")
