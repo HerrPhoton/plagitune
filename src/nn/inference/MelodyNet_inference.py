@@ -15,7 +15,7 @@ from src.data.utils.label_normalizer import LabelNormalizer
 from src.data.configs.melody_pipeline_config import MelodyPipelineConfig
 
 
-class MelodyInference:
+class MelodyNetInference:
 
     def __init__(self, model_path: str):
 

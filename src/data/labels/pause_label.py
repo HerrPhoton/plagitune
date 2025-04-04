@@ -32,7 +32,7 @@ class PauseLabel:
 
             for _ in range(quarters_count):
                 if quarter_idx < total_quarters:
-                    classes[quarter_idx] = 0 if note.is_rest else 1
+                    classes[quarter_idx] = float(note.is_rest)
                     quarter_idx += 1
 
             current_position += note.duration

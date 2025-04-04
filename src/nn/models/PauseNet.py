@@ -77,4 +77,4 @@ class PauseNet(nn.Module):
         self.eval()
         pauses = self.forward(x)
 
-        return torch.sigmoid(pauses) > 0.5
+        return (torch.sigmoid(pauses) > 0.5).float()

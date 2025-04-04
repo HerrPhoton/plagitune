@@ -16,7 +16,7 @@ class Note:
 
         :return float: Длительность ноты
         """
-        standard_durations = sorted(np.arange(0.25, 10.25, 0.25).tolist() + [0.33])
+        standard_durations = sorted(np.arange(0.25, 16.25, 0.25).tolist())
         return min(standard_durations, key=lambda x: abs(x - duration))
 
     @property

@@ -15,7 +15,7 @@ early_stopping_threshold: 10
 optimizer_type: 'sgd'
 scheduler_type: 'reduce_on_plateau'
 
-weights: [2.0282, 0.6636]
+weights: [0.6630897521972656, 2.032898426055908]
 
 reduce_on_plateau_params:
   patience: 10
