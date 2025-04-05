@@ -4,8 +4,8 @@ from torch import Tensor
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
 from src.data.labels.melody_label import MelodyLabel
-from src.data.utils.label_normalizer import LabelNormalizer
 from src.data.pipelines.audio_pipeline import AudioPipeline
+from src.data.normalizers.label_normalizer import LabelNormalizer
 from src.data.configs.melody_pipeline_config import MelodyPipelineConfig
 
 

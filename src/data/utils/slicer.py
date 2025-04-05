@@ -34,7 +34,7 @@ class Slicer:
         samples_per_beat = int(audio.sample_rate * 60 / tempo)
         samples_per_measure = samples_per_beat * SlicerConfig.beats_per_measure
         samples_per_slice = samples_per_measure * SlicerConfig.measures_per_slice
-        hop_beats = SlicerConfig.hop_beats * SlicerConfig.beats_per_measure
+        hop_beats = self.hop_beats * SlicerConfig.beats_per_measure
 
         total_samples = audio.waveform.shape[1]
 
@@ -95,6 +95,10 @@ class Slicer:
             window_start = current_beat
             window_end = window_start + self.window_size
             current_pos = 0.0
+
+            remaining_beats = total_beats - current_beat
+            if remaining_beats < 0.25:
+                break
 
             accumulated_time = 0.0
             for note in melody.notes:

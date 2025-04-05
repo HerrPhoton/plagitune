@@ -6,12 +6,13 @@ from torch.utils.data import Dataset
 
 from src.data.utils.slicer import Slicer
 from src.data.structures.audio import Audio
+from src.data.configs.slicer_config import SlicerConfig
 from src.data.pipelines.audio_pipeline import AudioPipeline
 
 
 class AudioDataset(Dataset):
 
-    def __init__(self, audio: list[Audio]):
+    def __init__(self, audio: list[Audio], **kwargs):
         """
         :param List[Audio] audio: Аудиофайлы.
         """
@@ -19,7 +20,7 @@ class AudioDataset(Dataset):
 
         self.audio = audio
 
-        self.slicer = Slicer()
+        self.slicer = Slicer(hop_beats=kwargs.get('hop_beats') or SlicerConfig.hop_beats)
         self.pipeline = AudioPipeline()
 
         self.sliced_audio = self.slice_audio(self.audio)

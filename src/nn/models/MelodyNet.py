@@ -4,7 +4,7 @@ from torch import Tensor
 from torchvision.models import resnet50
 
 from src.data.configs.slicer_config import SlicerConfig
-from src.data.utils.label_normalizer import LabelNormalizer
+from src.data.normalizers.label_normalizer import LabelNormalizer
 from src.data.configs.melody_pipeline_config import MelodyPipelineConfig
 
 

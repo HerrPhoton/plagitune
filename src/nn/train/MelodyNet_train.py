@@ -284,9 +284,24 @@ class PLMelodyNet(L.LightningModule):
         target_durations = targets[1]
         target_seq_len = targets[2]
 
-        freqs_loss = self._masked_mse(predicted_freqs, target_freqs)
-        durations_loss = self._masked_mse(predicted_durations, target_durations)
-        seq_len_loss = self.loss_fn(predicted_seq_len, target_seq_len)
+        # note_mask = (target_freqs != 0).float()
+
+        freqs_loss = self._masked_mse(
+            predicted_freqs,
+            target_freqs,
+            # additional_mask=note_mask
+        )
+
+        durations_loss = self._masked_mse(
+            predicted_durations,
+            target_durations,
+            # additional_mask=note_mask
+        )
+
+        seq_len_loss = self.loss_fn(
+            predicted_seq_len,
+            target_seq_len
+        )
 
         loss = (
             self.freqs_weight * freqs_loss +
@@ -296,17 +311,21 @@ class PLMelodyNet(L.LightningModule):
 
         return loss, freqs_loss, durations_loss, seq_len_loss
 
-    def _masked_mse(self, preds: Tensor, targets: Tensor) -> Tensor:
+    def _masked_mse(self, preds: Tensor, targets: Tensor, additional_mask: Tensor = None) -> Tensor:
         """Вычисляет MSE с учетом паддинга.
 
         :param Tensor preds: Предсказанные значения [batch_size, seq_len]
         :param Tensor targets: Целевые значения [batch_size, seq_len]
+        :param Tensor additional_mask: Дополнительная маска для учета дополнительных условий
         :return Tensor: Среднеквадратичная ошибка (MSE)
         """
         if preds.shape[1] > targets.shape[1]:
             preds = preds[:, :targets.shape[1]]
 
         mask = (targets != SlicerConfig.label_pad_value).float()
+
+        if additional_mask is not None:
+            mask = mask * additional_mask
 
         loss = self.masked_loss_fn(preds, targets)
         loss *= mask

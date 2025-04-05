@@ -3,7 +3,6 @@ from pathlib import Path
 import torch
 from torch import Tensor
 
-from src.data.utils.slicer import Slicer
 from src.data.structures.audio import Audio
 from src.nn.train.PauseNet_train import PLPauseNet
 from src.data.loaders.audio_loader import get_audio_dataloader
@@ -21,9 +20,6 @@ class PauseNetInference:
         self.model.to(self.device)
         self.model.eval()
 
-        self.slicer = Slicer(hop_beats=SlicerConfig.beats_per_measure * SlicerConfig.measures_per_slice)
-
-
     def predict_pause(self, audio: str | Path, tempo: int | None = None) -> Tensor:
         """Предсказание пауз в музыкальном произведении.
 
@@ -35,9 +31,7 @@ class PauseNetInference:
         if tempo is None:
             tempo = audio.get_tempo()
 
-        dataset = AudioDataset([audio])
-        dataset.sliced_audio = self.slicer.slice_audio_by_measure(audio, tempo)
-        dataset.preprocessed_data = dataset._preprocess_data(dataset.sliced_audio)
+        dataset = AudioDataset([audio], hop_beats=SlicerConfig.measures_per_slice)
 
         dataloader = get_audio_dataloader(
             dataset,

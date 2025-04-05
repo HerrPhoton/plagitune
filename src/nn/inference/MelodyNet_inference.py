@@ -3,7 +3,6 @@ from pathlib import Path
 import torch
 from torch import Tensor
 
-from src.data.utils.slicer import Slicer
 from src.data.structures.note import Note
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
@@ -11,7 +10,7 @@ from src.nn.train.MelodyNet_train import PLMelodyNet
 from src.data.loaders.audio_loader import get_audio_dataloader
 from src.data.configs.slicer_config import SlicerConfig
 from src.data.datasets.audio_dataset import AudioDataset
-from src.data.utils.label_normalizer import LabelNormalizer
+from src.data.normalizers.label_normalizer import LabelNormalizer
 from src.data.configs.melody_pipeline_config import MelodyPipelineConfig
 
 
@@ -25,7 +24,6 @@ class MelodyNetInference:
         self.model.to(self.device)
         self.model.eval()
 
-        self.slicer = Slicer(hop_beats=SlicerConfig.beats_per_measure)
         self.label_normalizer = LabelNormalizer(
             freq_min=MelodyPipelineConfig.f_min,
             freq_max=MelodyPipelineConfig.f_max,
@@ -46,9 +44,7 @@ class MelodyNetInference:
         if tempo is None:
             tempo = audio.get_tempo()
 
-        dataset = AudioDataset([audio])
-        dataset.sliced_audio = self.slicer.slice_audio_by_measure(audio, tempo)
-        dataset.preprocessed_data = dataset._preprocess_data(dataset.sliced_audio)
+        dataset = AudioDataset([audio], hop_beats=SlicerConfig.measures_per_slice)
 
         dataloader = get_audio_dataloader(
             dataset,
@@ -93,7 +89,7 @@ class MelodyNetInference:
             duration = float(durations[i])
             freq = float(freqs[i])
 
-            if freq < 20:
+            if freq <= 47.5:
                 note = Note(None, duration)
 
             else:
