@@ -65,7 +65,7 @@ class Audio:
             sr=self.sample_rate,
             prop_decrease=prop_decrease,
             n_fft=n_fft,
-            use_torch=True
+            use_torch=torch.cuda.is_available()
         )
         self.waveform = torch.from_numpy(reduced_noise)
 
