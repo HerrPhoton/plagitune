@@ -17,4 +17,3 @@ class MatcherStyle(MelodyStyle):
 
     suptitle: str | None = None
     suptitle_fontsize: int = 14
-    suptitle_pad: int = 20

@@ -1,6 +1,9 @@
 /src/nn/logs/*
 !src/nn/logs/.gitkeep
 
+/src/nn/weights/*
+!src/nn/weights/.gitkeep
+
 /datasets/*
 !datasets/.gitkeep
 

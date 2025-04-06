@@ -49,6 +49,6 @@ adamw_params:
 
 
 # Пути к датасетам
-train_dataset_path: ../../../datasets/melody_extraction/processed/train/
-val_dataset_path: ../../../datasets/melody_extraction/processed/val/
-test_dataset_path: ../../../datasets/melody_extraction/processed/test/
+train_dataset_path: ../../../datasets/MelodyNet/processed/train/
+val_dataset_path: ../../../datasets/MelodyNet/processed/val/
+test_dataset_path: ../../../datasets/MelodyNet/processed/test/

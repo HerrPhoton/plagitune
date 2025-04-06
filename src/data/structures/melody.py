@@ -133,6 +133,13 @@ class Melody:
 
         return ax
 
+    def get_note_names(self) -> list[str]:
+        """Возвращает имена нот в мелодии.
+
+        :return list[str]: Список имен нот
+        """
+        return [note.note_name for note in self.notes]
+
     def get_freqs(self) -> list[float]:
         """Возвращает частоты нот в мелодии.
 
