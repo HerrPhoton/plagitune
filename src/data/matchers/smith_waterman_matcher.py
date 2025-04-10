@@ -15,10 +15,11 @@ class SmithWatermanMelodyMatcher(BaseMelodyMatcher):
     def find_patterns(
         self,
         min_length: int = 7,
-        match_score: int = 2,
-        mismatch_score: int = -1,
+        match_score: int = 1,
+        mismatch_score: int = -2,
         gap_penalty: int = -1,
-        tolerance: float = 0.5
+        tolerance: float = 0.2,
+        threshold_ratio: float = 0.5
     ) -> list[MatchedPattern]:
         """Находит похожие паттерны в мелодиях используя алгоритм Смита-Ватермана.
 
@@ -27,6 +28,7 @@ class SmithWatermanMelodyMatcher(BaseMelodyMatcher):
         :param int mismatch_score: Оценка за несовпадение
         :param int gap_penalty: Штраф за разрыв
         :param float tolerance: Допустимое отклонение при сравнении интервалов
+        :param float threshold_ratio: Доля максимального значения в матрице для определения порога совпадения
         :return list[MatchedPattern]: Список найденных паттернов
         """
         m, n = len(self.intervals1), len(self.intervals2)
@@ -66,7 +68,7 @@ class SmithWatermanMelodyMatcher(BaseMelodyMatcher):
                     max_score = score_matrix[i, j]
 
         self.matched_patterns = []
-        threshold_score = match_score * min_length // 2
+        threshold_score = max_score * threshold_ratio
 
         high_scores = np.where(score_matrix >= threshold_score)
         positions = list(zip(high_scores[0], high_scores[1]))

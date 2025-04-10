@@ -213,6 +213,13 @@ class Melody:
             if not note.is_rest else 12 for note in self.notes
         ]
 
+    def get_midi_numbers(self) -> list[int]:
+        """Возвращает MIDI номера нот в мелодии.
+
+        :return List[int]: Список MIDI номеров нот
+        """
+        return [note.midi_number for note in self.notes]
+
     @classmethod
     def from_midi(cls, midi_path: str | Path) -> 'Melody':
         """Создает экземпляр Melody из MIDI файла.

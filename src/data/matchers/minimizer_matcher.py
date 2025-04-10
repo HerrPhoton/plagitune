@@ -17,9 +17,9 @@ class MinimizerMelodyMatcher(BaseMelodyMatcher):
     def find_patterns(
         self,
         min_length: int = 7,
-        k: int = 7,
+        k: int = 5,
         l: int = 3,
-        tolerance: float = 0.5,
+        tolerance: float = 0.2,
         max_gap: int = 2
     ) -> list[MatchedPattern]:
         """Находит похожие паттерны в мелодиях используя алгоритм минимайзера.
@@ -48,7 +48,7 @@ class MinimizerMelodyMatcher(BaseMelodyMatcher):
 
         return self.matched_patterns
 
-    def _get_minimizers(self, sequence: np.ndarray, k: int, l: int) -> dict[tuple[int, int], set[int]]:
+    def _get_minimizers(self, sequence: np.ndarray, k: int, l: int) -> dict[tuple[float, ...], set[int]]:
         """Извлекает минимайзеры из последовательности.
 
         :param np.ndarray sequence: Последовательность интервалов

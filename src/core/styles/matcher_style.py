@@ -8,6 +8,8 @@ class MatcherStyle(MelodyStyle):
 
     figsize: tuple[int, int] = (15, 10)
 
+    non_match_color: str | None = '#808080'
+
     match_color: str = '#FF4444'
     match_edge_color: str = '#000000'
     match_alpha: float = 0.8

@@ -15,7 +15,7 @@ class KMerMelodyMatcher(BaseMelodyMatcher):
     def find_patterns(
         self,
         min_length: int = 7,
-        k: int = 3,
+        k: int = 5,
         max_distance: float = 0.3,
         max_gap: int = 1
     ) -> list[MatchedPattern]:

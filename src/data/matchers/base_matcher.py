@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
+from Levenshtein import distance as levenshtein_distance
 from matplotlib.patches import Rectangle
 
 from src.data.structures.melody import Melody
@@ -63,6 +64,33 @@ class BaseMelodyMatcher(ABC):
         match_ratio2 = len(matched_indices2) / total_notes2 if total_notes2 > 0 else 0
 
         return (match_ratio1 + match_ratio2) / 2
+
+    def overlaps_levenshtein_distance(self) -> float:
+        """Вычисляет расстояние Левенштейна между двумя пересекающимися последовательностями.
+
+        :return float: Значение расстояния Левенштейна
+        """
+        if not self.matched_patterns:
+            return float('inf')
+
+        matched_indices1 = set()
+        matched_indices2 = set()
+
+        for pattern in self.matched_patterns:
+            for idx1, idx2 in pattern.notes_indices:
+                matched_indices1.add(idx1)
+                matched_indices2.add(idx2)
+
+        matched_indices1 = sorted(list(matched_indices1))
+        matched_indices2 = sorted(list(matched_indices2))
+
+        seq1 = [self.melody1.get_midi_numbers()[idx] for idx in matched_indices1]
+        seq2 = [self.melody2.get_midi_numbers()[idx] for idx in matched_indices2]
+
+        if not seq1 or not seq2:
+            return float('inf')
+
+        return levenshtein_distance(seq1, seq2)
 
     def visualize_matches(self, pattern: MatchedPattern | None = None, **style_kwargs) -> None:
         """Визуализирует мелодии с подсветкой совпадающих паттернов.
@@ -149,11 +177,13 @@ class BaseMelodyMatcher(ABC):
         for i, note in enumerate(melody.notes):
             if not note.is_rest:
                 note_name = note.note_name
+
                 if note_name in pitches:
                     pitch_idx = pitches.index(note_name)
                     duration = melody._beats_to_seconds(note.duration)
 
-                    color = 'red' if i in matched_indices else style.note_gradient[note_name[:-1]]
+                    base_color = style.note_gradient[note_name[:-1]] if not style.non_match_color else style.non_match_color
+                    color = 'red' if i in matched_indices else base_color
 
                     rect = Rectangle(
                         (current_time, pitch_idx - 0.4),
