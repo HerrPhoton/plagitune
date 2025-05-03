@@ -77,9 +77,9 @@ class MinimizerMelodyMatcher(BaseMelodyMatcher):
                         case float('inf'):
                             l_mer_values.append(INF_VALUE)
                         case float('-inf'):
-                            l_mer_values.append(-INF_VALUE)
+                            l_mer_values.append(INF_VALUE)
                         case _:
-                            l_mer_values.append(val)
+                            l_mer_values.append(abs(val))
 
                 l_mer = tuple(l_mer_values)
 
