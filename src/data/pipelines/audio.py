@@ -4,12 +4,12 @@ import torch
 from torch import Tensor
 from torchaudio.transforms import AmplitudeToDB
 
+from src.data.configs.audio import AudioConfig
 from src.data.structures.audio import Audio
-from src.data.configs.audio_config import AudioConfig
+from src.data.configs.spectrogram import SpectrogramConfig
+from src.data.configs.audio_pipeline import AudioPipelineConfig
 from src.data.structures.spectrogram import Spectrogram
-from src.data.configs.spectrogram_config import SpectrogramConfig
-from src.data.configs.audio_pipeline_config import AudioPipelineConfig
-from src.data.normalizers.spectrogram_normalizer import SpectrogramNormalizer
+from src.data.normalizers.spectrogram import SpectrogramNormalizer
 
 
 class AudioPipeline(torch.nn.Module):

@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 
+from src.core.styles.sample import SampleStyle
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
-from src.core.styles.sample_style import SampleStyle
 from src.data.structures.spectrogram import Spectrogram
 
 
@@ -49,7 +49,7 @@ class Sample:
         :return: Axes с отрисованным образцом
         """
         style = SampleStyle(**style_kwargs)
-        
+
         spectrogram = Spectrogram.from_audio(self.audio)
 
         fig, ax = plt.subplots(2, 1, figsize=style.figsize)

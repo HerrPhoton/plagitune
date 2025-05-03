@@ -6,8 +6,8 @@ import pretty_midi
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
+from src.core.styles.melody import MelodyStyle
 from src.data.structures.note import Note
-from src.core.styles.melody_style import MelodyStyle
 
 
 class Melody:

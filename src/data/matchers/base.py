@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 from Levenshtein import distance as levenshtein_distance
 from matplotlib.patches import Rectangle
 
+from src.core.styles.matcher import MatcherStyle
 from src.data.structures.melody import Melody
-from src.core.styles.matcher_style import MatcherStyle
 
 
 @dataclass

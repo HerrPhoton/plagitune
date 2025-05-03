@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 
-from src.data.labels.melody_label import MelodyLabel
+from src.data.labels.melody import MelodyLabel
 
 
 class LabelNormalizer:

@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch import Tensor
 from torchvision.models import resnet50
 
-from src.data.configs.slicer_config import SlicerConfig
+from src.data.configs.slicer import SlicerConfig
 
 
 class PauseNet(nn.Module):

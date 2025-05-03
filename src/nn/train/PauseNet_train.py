@@ -13,9 +13,9 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from torchmetrics.classification import BinaryRecall, BinaryF1Score, BinaryPrecision
 
+from src.data.loaders.pause import get_pause_dataloader
 from src.nn.models.PauseNet import PauseNet
-from src.data.loaders.pause_loader import get_pause_dataloader
-from src.data.datasets.pause_dataset import PauseDataset
+from src.data.datasets.pause import PauseDataset
 
 CUR_PATH = Path(__file__).resolve().parent
 torch.set_float32_matmul_precision('high')

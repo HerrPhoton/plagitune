@@ -1,12 +1,12 @@
 import torch
 from torch import Tensor
 
+from src.data.labels.melody import MelodyLabel
+from src.data.pipelines.audio import AudioPipeline
 from src.data.structures.audio import Audio
+from src.data.normalizers.label import LabelNormalizer
 from src.data.structures.melody import Melody
-from src.data.labels.melody_label import MelodyLabel
-from src.data.pipelines.audio_pipeline import AudioPipeline
-from src.data.normalizers.label_normalizer import LabelNormalizer
-from src.data.configs.melody_pipeline_config import MelodyPipelineConfig
+from src.data.configs.melody_pipeline import MelodyPipelineConfig
 
 
 class MelodyPipeline(torch.nn.Module):

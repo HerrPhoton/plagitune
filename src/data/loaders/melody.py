@@ -3,8 +3,8 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
-from src.data.configs.slicer_config import SlicerConfig
-from src.data.datasets.melody_dataset import MelodyDataset
+from src.data.configs.slicer import SlicerConfig
+from src.data.datasets.melody import MelodyDataset
 
 
 def collate_fn(batch: list[tuple[Tensor, Tensor, Tensor, Tensor]]) -> tuple[Tensor, Tensor, Tensor, Tensor]:

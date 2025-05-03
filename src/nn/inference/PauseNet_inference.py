@@ -3,11 +3,11 @@ from pathlib import Path
 import torch
 from torch import Tensor
 
+from src.data.loaders.audio import get_audio_dataloader
+from src.data.configs.slicer import SlicerConfig
+from src.data.datasets.audio import AudioDataset
 from src.data.structures.audio import Audio
 from src.nn.train.PauseNet_train import PLPauseNet
-from src.data.loaders.audio_loader import get_audio_dataloader
-from src.data.configs.slicer_config import SlicerConfig
-from src.data.datasets.audio_dataset import AudioDataset
 
 
 class PauseNetInference:

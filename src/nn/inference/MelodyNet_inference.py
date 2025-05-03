@@ -3,15 +3,15 @@ from pathlib import Path
 import torch
 from torch import Tensor
 
+from src.data.loaders.audio import get_audio_dataloader
+from src.data.configs.slicer import SlicerConfig
+from src.data.datasets.audio import AudioDataset
 from src.data.structures.note import Note
 from src.data.structures.audio import Audio
+from src.data.normalizers.label import LabelNormalizer
 from src.data.structures.melody import Melody
 from src.nn.train.MelodyNet_train import PLMelodyNet
-from src.data.loaders.audio_loader import get_audio_dataloader
-from src.data.configs.slicer_config import SlicerConfig
-from src.data.datasets.audio_dataset import AudioDataset
-from src.data.normalizers.label_normalizer import LabelNormalizer
-from src.data.configs.melody_pipeline_config import MelodyPipelineConfig
+from src.data.configs.melody_pipeline import MelodyPipelineConfig
 
 
 class MelodyNetInference:

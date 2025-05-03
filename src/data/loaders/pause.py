@@ -2,7 +2,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from src.data.datasets.pause_dataset import PauseDataset
+from src.data.datasets.pause import PauseDataset
 
 
 def collate_fn(batch: list[tuple[Tensor, Tensor]]) -> tuple[Tensor, Tensor]:

@@ -7,9 +7,9 @@ from torch.utils.data import Dataset
 
 from src.data.utils.slicer import Slicer
 from src.data.structures.note import Note
+from src.data.pipelines.melody import MelodyPipeline
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
-from src.data.pipelines.melody_pipeline import MelodyPipeline
 
 
 class MelodyDataset(Dataset):

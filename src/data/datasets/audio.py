@@ -5,9 +5,9 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 from src.data.utils.slicer import Slicer
+from src.data.configs.slicer import SlicerConfig
+from src.data.pipelines.audio import AudioPipeline
 from src.data.structures.audio import Audio
-from src.data.configs.slicer_config import SlicerConfig
-from src.data.pipelines.audio_pipeline import AudioPipeline
 
 
 class AudioDataset(Dataset):

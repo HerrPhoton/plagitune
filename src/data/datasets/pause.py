@@ -6,10 +6,10 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 from src.data.utils.slicer import Slicer
+from src.data.pipelines.pause import PausePipeline
 from src.data.structures.note import Note
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
-from src.data.pipelines.pause_pipeline import PausePipeline
 
 
 class PauseDataset(Dataset):

@@ -8,7 +8,7 @@ import torchaudio
 import noisereduce as nr
 import matplotlib.pyplot as plt
 
-from src.core.styles.waveform_style import WaveformStyle
+from src.core.styles.waveform import WaveformStyle
 
 
 class Audio:

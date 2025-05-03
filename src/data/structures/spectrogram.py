@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from torch import Tensor
 
 from src.data.structures.audio import Audio
-from src.core.styles.spectrogram_style import SpectrogramStyle
+from src.core.styles.spectrogram import SpectrogramStyle
 
 
 class Spectrogram:

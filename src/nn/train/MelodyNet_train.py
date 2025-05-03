@@ -13,10 +13,10 @@ from torch.optim.lr_scheduler import OneCycleLR, CosineAnnealingLR, ReduceLROnPl
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 
+from src.data.configs.slicer import SlicerConfig
+from src.data.loaders.melody import get_melody_dataloader
 from src.nn.models.MelodyNet import MelodyNet
-from src.data.configs.slicer_config import SlicerConfig
-from src.data.loaders.melody_loader import get_melody_dataloader
-from src.data.datasets.melody_dataset import MelodyDataset
+from src.data.datasets.melody import MelodyDataset
 
 CUR_PATH = Path(__file__).resolve().parent
 torch.set_float32_matmul_precision('high')

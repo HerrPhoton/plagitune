@@ -3,10 +3,10 @@ from dataclasses import dataclass
 
 import torch
 
+from src.data.configs.slicer import SlicerConfig
 from src.data.structures.note import Note
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
-from src.data.configs.slicer_config import SlicerConfig
 
 
 @dataclass

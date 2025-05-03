@@ -1,10 +1,10 @@
 import torch
 from torch import Tensor
 
+from src.data.labels.pause import PauseLabel
+from src.data.pipelines.audio import AudioPipeline
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
-from src.data.labels.pause_label import PauseLabel
-from src.data.pipelines.audio_pipeline import AudioPipeline
 
 
 class PausePipeline(torch.nn.Module):

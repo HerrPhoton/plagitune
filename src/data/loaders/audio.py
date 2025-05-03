@@ -2,7 +2,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from src.data.datasets.audio_dataset import AudioDataset
+from src.data.datasets.audio import AudioDataset
 
 
 def collate_fn(batch: list[Tensor]) -> Tensor:

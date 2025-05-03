@@ -3,8 +3,8 @@ from dataclasses import dataclass
 import torch
 from torch import Tensor
 
+from src.data.configs.slicer import SlicerConfig
 from src.data.structures.melody import Melody
-from src.data.configs.slicer_config import SlicerConfig
 
 
 @dataclass

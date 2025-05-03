@@ -1,7 +1,7 @@
 import numpy as np
 
+from src.data.matchers.base import MatchedPattern, BaseMelodyMatcher
 from src.data.structures.melody import Melody
-from src.data.matchers.base_matcher import MatchedPattern, BaseMelodyMatcher
 
 
 class IntervalsMelodyMatcher(BaseMelodyMatcher):
