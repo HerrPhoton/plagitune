@@ -1,190 +1,158 @@
 from copy import deepcopy
+from dataclasses import dataclass
 
 import torch
 
+from src.data.configs.slicer import SlicerConfig
 from src.data.structures.note import Note
 from src.data.structures.audio import Audio
 from src.data.structures.melody import Melody
-from src.data.pipelines.configs.slice_config import SliceConfig
-from src.data.pipelines.configs.spectrogram_config import SpectrogramConfig
+
+
+@dataclass
+class NotePosition:
+    start: float
+    duration: float
+    note: str | None
 
 
 class Slicer:
 
-    def __init__(
-        self,
-        slice_config: SliceConfig,
-        spectrogram_config: SpectrogramConfig,
-    ):
-        self.slice_config = slice_config
-        self.spectrogram_config = spectrogram_config
+    def __init__(self, hop_beats: float = SlicerConfig.hop_beats):
+        self.hop_beats = hop_beats
+        self.window_size = SlicerConfig.beats_per_measure * SlicerConfig.measures_per_slice
+        self.hop_size = self.hop_beats * SlicerConfig.beats_per_measure
 
-        self.slice_size = self.slice_config.slice_size
-        self.hop_size = self.slice_config.hop_size
-
-    def slice_audio(self, audio: Audio) -> list[Audio]:
-        """Нарезка аудио на окна.
+    def slice_audio_by_measure(self, audio: Audio, tempo: int, target_beats: float | None = None) -> list[Audio]:
+        """Нарезка аудио на окна в соответствии с тактами.
 
         :param Audio audio: Аудиофайл
+        :param int tempo: Темп мелодии
+        :param float | None target_beats: Целевая длительность в битах (если None, используется длина аудио)
         :return List[Audio]: Список аудиофайлов, нарезанных на окна
         """
-        sliced_audio = []
+        samples_per_beat = int(audio.sample_rate * 60 / tempo)
+        samples_per_measure = samples_per_beat * SlicerConfig.beats_per_measure
+        samples_per_slice = samples_per_measure * SlicerConfig.measures_per_slice
+        hop_beats = self.hop_beats * SlicerConfig.beats_per_measure
 
-        hop_length = self.spectrogram_config.hop_length
-
-        slice_samples = self.slice_config.slice_size * hop_length
-        hop_samples = self.slice_config.hop_size * hop_length
         total_samples = audio.waveform.shape[1]
 
-        if total_samples <= slice_samples:
+        if target_beats is not None:
+            total_beats = target_beats
 
-            padded_audio = deepcopy(audio)
-            padded_window = torch.full((1, slice_samples), self.slice_config.audio_pad_value, dtype=audio.waveform.dtype)
-            padded_window[:, :total_samples] = audio.waveform
-            padded_audio.waveform = padded_window
+        else:
+            total_beats = total_samples / samples_per_beat
+            total_beats = round(total_beats, 2)
 
-            sliced_audio.append(padded_audio)
-            return sliced_audio
+        sliced_audio = []
+        current_beat = 0.0
 
-        windows_to_process = []
-        current_sample = 0
+        while current_beat < total_beats:
+            current_sample = int(current_beat * samples_per_beat)
+            window_end_beat = current_beat + (SlicerConfig.beats_per_measure * SlicerConfig.measures_per_slice)
 
-        while current_sample < total_samples:
-            end_sample = min(current_sample + slice_samples, total_samples)
-            windows_to_process.append((current_sample, end_sample))
+            window = torch.full(
+                (1, samples_per_slice),
+                SlicerConfig.audio_pad_value,
+                dtype=audio.waveform.dtype
+            )
 
-            if end_sample == total_samples:
+            samples_to_copy = min(
+                int((window_end_beat - current_beat) * samples_per_beat),
+                total_samples - current_sample
+            )
+
+            if (samples_to_copy / samples_per_beat) < 0.25:
                 break
 
-            current_sample += hop_samples
+            window[:, :samples_to_copy] = audio.waveform[:, current_sample:current_sample + samples_to_copy]
 
-        if windows_to_process[-1][1] < total_samples:
-            last_window = (max(0, total_samples - slice_samples), total_samples)
-            windows_to_process.append(last_window)
+            window_audio = deepcopy(audio)
+            window_audio.waveform = window
+            sliced_audio.append(window_audio)
 
-        windows_to_process = list(dict.fromkeys(windows_to_process))
-        windows_to_process.sort()
+            if current_beat + hop_beats >= total_beats:
+                break
 
-        for start_sample, end_sample in windows_to_process:
-
-            audio_slice = deepcopy(audio)
-            samples_to_copy = end_sample - start_sample
-
-            if samples_to_copy < slice_samples:
-                padded_window = torch.full((1, slice_samples), self.slice_config.audio_pad_value, dtype=audio.waveform.dtype)
-                padded_window[:, :samples_to_copy] = audio.waveform[:, start_sample:end_sample]
-                audio_slice.waveform = padded_window
-
-            else:
-                audio_slice.waveform = audio.waveform[:, start_sample:end_sample]
-
-            sliced_audio.append(audio_slice)
+            current_beat += hop_beats
 
         return sliced_audio
 
-    def slice_melody(self, melody: Melody, audio: Audio) -> list[Melody]:
-        """Нарезка мелодии на окна в соответствии с окнами аудио.
+    def slice_melody_by_measure(self, melody: Melody) -> list[Melody]:
+        """Нарезка мелодии на окна по 4 такта
 
-        :param Melody melody: Объект мелодии
-        :param Audio audio: Объект аудио (нужен для определения временных границ)
-        :return List[Melody]: Список объектов мелодии для каждого окна
+        :param Melody melody: Мелодия
+        :return List[Melody]: Список мелодий, нарезанных на окна
         """
+        total_beats = sum(note.duration for note in melody.notes)
+        total_beats = round(total_beats, 2)
         sliced_melody = []
+        current_beat = 0.0
 
-        hop_length = self.spectrogram_config.hop_length
+        while current_beat < total_beats:
+            window_notes = []
+            window_start = current_beat
+            window_end = window_start + self.window_size
+            current_pos = 0.0
 
-        slice_samples = self.slice_config.slice_size * hop_length
-        hop_samples = self.slice_config.hop_size * hop_length
-        total_samples = audio.waveform.shape[1]
-
-        note_times = []
-        current_time = 0.0
-
-        for note in melody._notes:
-            note_duration = melody._beats_to_seconds(note._duration)
-            note_end = current_time + note_duration
-            note_times.append((current_time, note_end, note))
-            current_time = note_end
-
-        if total_samples <= slice_samples:
-
-            padding_samples = slice_samples - total_samples
-            padding_duration = padding_samples / audio.sample_rate
-
-            padded_melody = deepcopy(melody)
-
-            if padding_duration > 0:
-                pause_duration_beats = melody._seconds_to_beats(padding_duration)
-                pause_note = Note(None, pause_duration_beats)
-                padded_melody._notes.append(pause_note)
-
-            sliced_melody.append(padded_melody)
-
-        windows_to_process = []
-        current_sample = 0
-
-        while current_sample < total_samples:
-            end_sample = min(current_sample + slice_samples, total_samples)
-            windows_to_process.append((current_sample, end_sample))
-
-            if end_sample == total_samples:
+            remaining_beats = total_beats - current_beat
+            if remaining_beats < 0.25:
                 break
 
-            current_sample += hop_samples
+            accumulated_time = 0.0
+            for note in melody.notes:
+                note_start = accumulated_time
+                note_end = note_start + note.duration
 
-        if windows_to_process[-1][1] < total_samples:
-            last_window = (max(0, total_samples - slice_samples), total_samples)
-            windows_to_process.append(last_window)
+                if note_start >= window_end:
+                    break
 
-        windows_to_process = list(dict.fromkeys(windows_to_process))
-        windows_to_process.sort()
+                if note_end <= window_start:
+                    accumulated_time = note_end
+                    continue
 
-        for start_sample, end_sample in windows_to_process:
+                start_in_window = max(0.0, note_start - window_start)
+                end_in_window = min(self.window_size, note_end - window_start)
+                duration_in_window = end_in_window - start_in_window
 
-            samples_to_copy = end_sample - start_sample
+                if start_in_window > current_pos:
+                    pause_duration = start_in_window - current_pos
+                    if pause_duration >= 0.25:
+                        window_notes.append(Note(None, pause_duration))
+                        current_pos += pause_duration
 
-            if samples_to_copy < slice_samples:
-                padded_window = torch.full((1, slice_samples), self.slice_config.audio_pad_value, dtype=audio.waveform.dtype)
-                padded_window[:, :samples_to_copy] = audio.waveform[:, start_sample:end_sample]
+                if duration_in_window >= 0.25:
+                    window_notes.append(Note(note.note, duration_in_window))
+                    current_pos += duration_in_window
 
-                padding_samples = slice_samples - samples_to_copy
-                padding_duration = padding_samples / audio.sample_rate
+                accumulated_time = note_end
 
-            else:
-                padding_duration = 0
+            if current_pos < self.window_size:
+                final_pause = self.window_size - current_pos
+                window_notes.append(Note(None, final_pause))
+                current_pos += final_pause
 
-            window_start = start_sample / audio.sample_rate
-            window_end = end_sample / audio.sample_rate
+            sliced_melody.append(Melody(window_notes, melody.tempo))
 
-            window_notes = []
-            notes_in_window = []
+            if current_beat + self.hop_size >= total_beats:
+                break
 
-            for j, (note_start, note_end, note) in enumerate(note_times):
-
-                if note_start < window_end and note_end > window_start:
-                    intersection_start = max(note_start, window_start)
-                    intersection_end = min(note_end, window_end)
-
-                    overlap_duration_sec = intersection_end - intersection_start
-                    overlap_duration_beats = melody._seconds_to_beats(overlap_duration_sec)
-
-                    if note.is_rest:
-                        window_notes.append(Note(None, overlap_duration_beats))
-
-                    else:
-                        window_notes.append(Note(note.note_name, overlap_duration_beats))
-
-                    notes_in_window.append(j+1)
-
-            if not window_notes:
-                pause_duration_beats = melody._seconds_to_beats(window_end - window_start)
-                window_notes.append(Note(None, pause_duration_beats))
-
-            if padding_duration > 0:
-                pause_duration_beats = melody._seconds_to_beats(padding_duration)
-                window_notes.append(Note(None, pause_duration_beats))
-
-            window_melody = Melody(window_notes, melody._tempo)
-            sliced_melody.append(window_melody)
+            current_beat += self.hop_size
 
         return sliced_melody
+
+    def slice_data(self, audio: Audio, melody: Melody) -> tuple[list[Audio], list[Melody]]:
+        """Нарезка аудио и мелодии на синхронизированные окна.
+
+        :param Audio audio: Аудиофайл
+        :param Melody melody: Мелодия
+        :return Tuple[List[Audio], List[Melody]]: Нарезанные окна аудио и мелодии
+        """
+        melody_beats = sum(note.duration for note in melody.notes)
+        melody_beats = round(melody_beats, 2)
+
+        sliced_audio = self.slice_audio_by_measure(audio, melody.tempo, target_beats=melody_beats)
+        sliced_melody = self.slice_melody_by_measure(melody)
+
+        return sliced_audio, sliced_melody

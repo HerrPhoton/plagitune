@@ -6,22 +6,23 @@ import torch
 import librosa
 import torchaudio
 import matplotlib.pyplot as plt
+from torch import Tensor
 
 from src.data.structures.audio import Audio
-from src.core.styles.spectrogram_style import SpectrogramStyle
+from src.core.styles.spectrogram import SpectrogramStyle
 
 
 class Spectrogram:
 
     def __init__(
         self,
-        waveform: torch.Tensor,
+        waveform: Tensor,
         sample_rate: int,
         n_fft: int = 2048,
         win_length: int | None = None,
         hop_length: int | None = None,
-        f_min: float = 0.0,
-        f_max: float | None = None,
+        f_min: float = 20.0,
+        f_max: float = 20_000.0,
         n_mels: int = 128,
         window_fn: torch.nn.Module = torch.hann_window,
         power: float = 2.0,
@@ -93,15 +94,19 @@ class Spectrogram:
 
         return filtered_spec
 
-    def visualize(self, **style_kwargs) -> None:
+    def visualize(self, ax: plt.Axes | None = None, **style_kwargs) -> plt.Axes:
         """Визуализирует спектрограмму.
 
+        :param ax: Axes для отрисовки. Если None, создается новая фигура
         :param style_kwargs: Дополнительные параметры визуализации
+        :return: Axes с отрисованной спектрограммой
         """
         style = SpectrogramStyle(**style_kwargs)
-        plt.style.use('dark_background')
 
-        fig, ax = plt.subplots(figsize=style.figsize, facecolor=style.background_color)
+        if ax is None:
+            fig, ax = plt.subplots(figsize=style.figsize)
+            fig.patch.set_facecolor(style.background_color)
+
         ax.set_facecolor(style.background_color)
 
         spec_db = librosa.power_to_db(
@@ -122,39 +127,47 @@ class Spectrogram:
             ax=ax,
         )
 
-        ax.set_xlabel(style.x_label, color=style.text_color, size=style.labels_fontsize)
-        ax.set_ylabel(style.y_label, color=style.text_color, size=style.labels_fontsize)
+        if style.x_label:
+            ax.set_xlabel(style.x_label, color=style.text_color, size=style.labels_fontsize)
 
-        ax.set_xlim(style.xlim)
-        ax.set_ylim(style.ylim)
+        if style.y_label:
+            ax.set_ylabel(style.y_label, color=style.text_color, size=style.labels_fontsize)
 
-        ax.set_title(
-            style.title,
-            color=style.text_color,
-            pad=style.title_pad,
-            fontsize=style.title_fontsize
-        )
+        if style.xlim:
+            ax.set_xlim(style.xlim)
+
+        if style.ylim:
+            ax.set_ylim(style.ylim)
+
+        if style.title:
+            ax.set_title(
+                style.title,
+                color=style.text_color,
+                pad=style.title_pad,
+                fontsize=style.title_fontsize
+            )
 
         if style.grid_visible:
             ax.grid(
-                style.grid_visible,
+                True,
                 linestyle=style.grid_linestyle,
                 alpha=style.grid_alpha,
                 color=style.grid_color
             )
 
-        ax.tick_params(colors=style.text_color, size=style.ticks_fontsize, labelsize=style.ticks_fontsize)
+        ax.tick_params(colors=style.text_color, labelsize=style.ticks_fontsize)
 
         for spine in ax.spines.values():
             spine.set_color(style.grid_color)
 
         if style.color_bar:
-            cbar = plt.colorbar(img, ax=ax, format='%+2.0f dB')
-            cbar.ax.tick_params(colors=style.text_color, size=style.ticks_fontsize, labelsize=style.ticks_fontsize)
-            cbar.set_label(style.color_bar_label, color=style.text_color, size=style.labels_fontsize)
+            fig = ax.figure
+            cbar = fig.colorbar(img, ax=ax, format='%+2.0f dB')
+            cbar.ax.tick_params(colors=style.text_color, labelsize=style.ticks_fontsize)
+            if style.color_bar_label:
+                cbar.set_label(style.color_bar_label, color=style.text_color, size=style.labels_fontsize)
 
-        plt.tight_layout()
-        plt.show()
+        return ax
 
     @classmethod
     def from_audio(
@@ -163,8 +176,8 @@ class Spectrogram:
         n_fft: int = 2048,
         win_length: int | None = None,
         hop_length: int | None = None,
-        f_min: float = 0.0,
-        f_max: float | None = None,
+        f_min: float = 20.0,
+        f_max: float = 20_000.0,
         n_mels: int = 128,
         window_fn: torch.nn.Module = torch.hann_window,
         power: float = 2.0,
