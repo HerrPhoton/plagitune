@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from src.core.styles.base_style import BaseStyle
+from src.core.styles.base import BaseStyle
 
 
 @dataclass

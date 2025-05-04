@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from src.core.styles.melody_style import MelodyStyle
+from src.core.styles.melody import MelodyStyle
 
 
 @dataclass

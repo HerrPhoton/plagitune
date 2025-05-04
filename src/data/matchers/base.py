@@ -65,13 +65,14 @@ class BaseMelodyMatcher(ABC):
 
         return (match_ratio1 + match_ratio2) / 2
 
-    def overlaps_levenshtein_distance(self) -> float:
+    def overlaps_levenshtein_distance(self, normalize: bool = False) -> int | float:
         """Вычисляет расстояние Левенштейна между двумя пересекающимися последовательностями.
 
+        :param bool normalize: Нормализовать расстояние Левенштейна
         :return float: Значение расстояния Левенштейна
         """
         if not self.matched_patterns:
-            return float('inf')
+            return max(len(self.melody1.notes), len(self.melody2.notes))
 
         matched_indices1 = set()
         matched_indices2 = set()
@@ -87,8 +88,8 @@ class BaseMelodyMatcher(ABC):
         seq1 = [self.melody1.get_midi_numbers()[idx] for idx in matched_indices1]
         seq2 = [self.melody2.get_midi_numbers()[idx] for idx in matched_indices2]
 
-        if not seq1 or not seq2:
-            return float('inf')
+        if normalize:
+            return levenshtein_distance(seq1, seq2) / max(len(seq1), len(seq2))
 
         return levenshtein_distance(seq1, seq2)
 

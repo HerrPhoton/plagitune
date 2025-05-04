@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import roseus.mpl as rs
 
-from src.core.styles.base_style import BaseStyle
+from src.core.styles.base import BaseStyle
 
 
 @dataclass
