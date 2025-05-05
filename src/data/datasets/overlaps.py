@@ -1,12 +1,11 @@
-from abc import ABC
 from pathlib import Path
 from collections import Counter
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from sklearn.base import BaseEstimator
-from sklearn.metrics import auc, roc_curve
+from torch import Tensor
+from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
 
 from src.data.structures.note import Note
@@ -15,15 +14,107 @@ from src.data.utils.levenshtein import calculate_levenshtein_distances
 from src.data.matchers.smith_waterman import SmithWatermanMelodyMatcher
 
 
-class BaseThresholdClassifier(ABC):
+class OverlapsDataset(Dataset):
 
-    def __init__(self):
-        self.model: BaseEstimator = None
-        self.scaler = StandardScaler()
-        self.feature_names = None
+    def __init__(
+        self,
+        overlapping_pairs: list[tuple[Path, Path]],
+        non_overlapping_pairs: list[tuple[Path, Path]]
+    ):
+        """
+        :param List[tuple[Path, Path]] overlapping_pairs: Пары перекрывающихся мелодий.
+        :param List[tuple[Path, Path]] non_overlapping_pairs: Пары неперекрывающихся мелодий.
+        """
+        super().__init__()
 
-    @staticmethod
-    def get_pair_features(pair: tuple[Path, Path], distance: float) -> dict:
+        self.overlapping_pairs = overlapping_pairs
+        self.non_overlapping_pairs = non_overlapping_pairs
+
+        self.features, self.targets = self._preprocess_data(self.overlapping_pairs, self.non_overlapping_pairs)
+
+    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor]:
+        """Возвращает элемент датасета.
+
+        :param int idx: Индекс элемента
+        :return Tuple[Tensor, Tensor]: Признаки и целевые значения.
+        """
+        return Tensor(self.features[idx]), Tensor([self.targets[idx]]).float()
+
+    def __len__(self) -> int:
+        return len(self.overlapping_pairs) + len(self.non_overlapping_pairs)
+
+    @classmethod
+    def from_path(cls, dataset_path: str | Path, split: str | None = None) -> 'OverlapsDataset':
+        """Загружает сэмплы из датасета.
+
+        :param str | Path dataset_path: Путь к директории с сэмплами
+        :param str split: Раздел датасета ('train', 'val', 'test'). Если None, используются все разделы
+        :return OverlapsDataset: Датасет
+        """
+        dataset_path = Path(dataset_path)
+
+        overlaping_pairs = []
+        non_overlaping_pairs = []
+
+        if split is not None:
+            split_dirs = [dataset_path / split]
+
+        else:
+            split_dirs = [dataset_path / split_name for split_name in ['train', 'val', 'test'] if (dataset_path / split_name).exists()]
+
+        for split_dir in split_dirs:
+            if not split_dir.exists() or not split_dir.is_dir():
+                continue
+
+            for case_dir in split_dir.iterdir():
+                if case_dir.is_dir():
+                    midi_files = list(case_dir.glob("*.mid"))
+                    overlaping_pairs.append((midi_files[0], midi_files[1]))
+
+        all_melodies = [midi for pair in overlaping_pairs for midi in pair]
+
+        for i, melody1 in enumerate(all_melodies):
+            for melody2 in all_melodies[i+1:]:
+                if melody1.parent != melody2.parent:
+                    non_overlaping_pairs.append((melody1, melody2))
+
+        return cls(overlaping_pairs, non_overlaping_pairs)
+
+    def _preprocess_data(self, overlapping_pairs: list[tuple[Path, Path]], non_overlapping_pairs: list[tuple[Path, Path]]) -> tuple[np.ndarray, np.ndarray]:
+        """Извлекает признаки из пар мелодий и предобрабатывает их.
+
+        :param list[tuple[Path, Path]] overlapping_pairs: Пары перекрывающихся мелодий.
+        :param list[tuple[Path, Path]] non_overlapping_pairs: Пары неперекрывающихся мелодий.
+        :return tuple[np.ndarray, np.ndarray]: Признаки и целевые значения.
+        """
+
+        overlapping_distances = calculate_levenshtein_distances(overlapping_pairs, normalize=True)
+        non_overlapping_distances = calculate_levenshtein_distances(non_overlapping_pairs, normalize=True)
+
+        features_list = []
+
+        for pair, distance in tqdm(zip(overlapping_pairs, overlapping_distances), total=len(overlapping_pairs), desc='Extracting overlapping features'):
+            features = self._get_pair_features(pair, distance)
+            features['is_overlapping'] = 1
+            features_list.append(features)
+
+        for pair, distance in tqdm(zip(non_overlapping_pairs, non_overlapping_distances), total=len(non_overlapping_pairs), desc='Extracting non-overlapping features'):
+            features = self._get_pair_features(pair, distance)
+            features['is_overlapping'] = 0
+            features_list.append(features)
+
+        df = pd.DataFrame(features_list)
+
+        X = df.drop('is_overlapping', axis=1)
+        y = df['is_overlapping']
+
+        self.feature_names = X.columns.tolist()
+
+        X_scaled = StandardScaler().fit_transform(X)
+
+        return X_scaled, y.values
+
+    def _get_pair_features(self, pair: tuple[Path, Path], distance: float) -> dict:
         """Получает признаки для пары мелодий.
 
         :param pair: Пара путей к MIDI файлам
@@ -122,60 +213,3 @@ class BaseThresholdClassifier(ABC):
         pair_features['interval_from_rest'] = abs(count1_from_rest - count2_from_rest)
 
         return pair_features
-
-    def prepare_features_dataset(self, overlapping_pairs: list[tuple[Path, Path]], non_overlapping_pairs: list[tuple[Path, Path]]) -> tuple[np.ndarray, np.ndarray]:
-        """Подготавливает датасет с признаками из пар мелодий.
-
-        :param list[tuple[Path, Path]] overlapping_pairs: Список пар перекрывающихся мелодий
-        :param list[tuple[Path, Path]] non_overlapping_pairs: Список пар неперекрывающихся мелодий
-
-        :return tuple[np.ndarray, np.ndarray]: Признаки и целевые значения
-        """
-        overlapping_distances = calculate_levenshtein_distances(overlapping_pairs, normalize=True)
-        non_overlapping_distances = calculate_levenshtein_distances(non_overlapping_pairs, normalize=True)
-
-        features_list = []
-
-        for pair, distance in tqdm(zip(overlapping_pairs, overlapping_distances), total=len(overlapping_pairs), desc='Extracting overlapping features'):
-            features = self.get_pair_features(pair, distance)
-            features['is_overlapping'] = 1
-            features_list.append(features)
-
-        for pair, distance in tqdm(zip(non_overlapping_pairs, non_overlapping_distances), total=len(non_overlapping_pairs), desc='Extracting non-overlapping features'):
-            features = self.get_pair_features(pair, distance)
-            features['is_overlapping'] = 0
-            features_list.append(features)
-
-        df = pd.DataFrame(features_list)
-
-        X = df.drop('is_overlapping', axis=1)
-        y = df['is_overlapping']
-
-        self.feature_names = X.columns.tolist()
-
-        X_scaled = self.scaler.fit_transform(X)
-
-        return X_scaled, y.values
-
-    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
-        self.model.fit(X, y)
-
-    def predict(self, X: np.ndarray) -> np.ndarray:
-        return self.model.predict(X)
-
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        return self.model.predict_proba(X)[:, 1]
-
-    def get_roc_curve(self, X: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
-        """Возвращает данные для построения ROC-кривой.
-
-        :param np.ndarray X: Признаки
-        :param np.ndarray y: Целевые значения
-
-        :return tuple[np.ndarray, np.ndarray, float]: False Positive Rate, True Positive Rate, Площадь под ROC-кривой
-        """
-        y_pred_proba = self.predict_proba(X)
-        fpr, tpr, _ = roc_curve(y, y_pred_proba)
-        roc_auc = auc(fpr, tpr)
-
-        return fpr, tpr, roc_auc
