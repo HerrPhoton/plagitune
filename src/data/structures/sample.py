@@ -56,6 +56,6 @@ class Sample:
         fig.patch.set_facecolor(style.background_color)
 
         spectrogram.visualize(ax=ax[0], color_bar=False)
-        self.melody.visualize(ax=ax[1])
+        self.melody.visualize(ax=ax[1], background_color='#FFFFFF', text_color='#1A1A1A', note_alpha=1.0)
 
         return ax

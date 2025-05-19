@@ -3,6 +3,7 @@ from pathlib import Path
 import torch
 from torch import Tensor
 
+from src.nn.inference.base import BaseInference
 from src.data.loaders.audio import get_audio_dataloader
 from src.data.configs.slicer import SlicerConfig
 from src.data.datasets.audio import AudioDataset
@@ -14,15 +15,10 @@ from src.nn.train.MelodyNet_train import PLMelodyNet
 from src.data.configs.melody_pipeline import MelodyPipelineConfig
 
 
-class MelodyNetInference:
+class MelodyNetInference(BaseInference):
 
     def __init__(self, model_path: str):
-
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
-        self.model = PLMelodyNet.load_from_checkpoint(model_path)
-        self.model.to(self.device)
-        self.model.eval()
+        super().__init__(model_path)
 
         self.label_normalizer = LabelNormalizer(
             freq_min=MelodyPipelineConfig.f_min,
@@ -33,7 +29,7 @@ class MelodyNetInference:
             seq_len_max=MelodyPipelineConfig.seq_len_max,
         )
 
-    def extract_melody(self, audio: str | Path, tempo: int | None = None) -> Melody:
+    def predict(self, audio: str | Path, tempo: int | None = None) -> Melody:
         """Извлечение мелодии из аудиофайла.
 
         :param str | Path | Audio audio: Аудиофайл или путь к аудиофайлу
@@ -71,6 +67,9 @@ class MelodyNetInference:
 
         merged_predictions = (merged_freqs, merged_durations)
         return self._predictions_to_melody(merged_predictions, tempo)
+
+    def _load_model(self, model_path: str) -> PLMelodyNet:
+        return PLMelodyNet.load_from_checkpoint(model_path)
 
     def _predictions_to_melody(self, predictions: tuple[Tensor, Tensor], tempo: int) -> Melody:
         """Преобразование предсказаний в объект Melody.

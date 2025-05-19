@@ -6,6 +6,11 @@ from src.data.datasets.overlaps import OverlapsDataset
 
 
 def collate_fn(batch: list[tuple[Tensor, Tensor]]) -> tuple[Tensor, Tensor]:
+    """Собирает батч из нарезанных семплов.
+
+    :param batch: Список кортежей (признаки, классы).
+    :return: Батч подготовленных данных.
+    """
     features, targets = zip(*batch)
 
     features_tensor = torch.stack(features)

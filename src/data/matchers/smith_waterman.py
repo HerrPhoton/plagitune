@@ -14,12 +14,12 @@ class SmithWatermanMelodyMatcher(BaseMelodyMatcher):
 
     def find_patterns(
         self,
-        min_length: int = 7,
-        match_score: int = 1,
-        mismatch_score: int = -2,
-        gap_penalty: int = -1,
-        tolerance: float = 0.2,
-        threshold_ratio: float = 0.5
+        min_length: int = 9,
+        match_score: int = 2,
+        mismatch_score: int = -3,
+        gap_penalty: int = -3,
+        tolerance: float = 0.5,
+        threshold_ratio: float = 0.3
     ) -> list[MatchedPattern]:
         """Находит похожие паттерны в мелодиях используя алгоритм Смита-Ватермана.
 

@@ -19,18 +19,21 @@ class OverlapsDataset(Dataset):
     def __init__(
         self,
         overlapping_pairs: list[tuple[Path, Path]],
-        non_overlapping_pairs: list[tuple[Path, Path]]
+        non_overlapping_pairs: list[tuple[Path, Path]],
+        preprocess_data: bool = True
     ):
         """
         :param List[tuple[Path, Path]] overlapping_pairs: Пары перекрывающихся мелодий.
         :param List[tuple[Path, Path]] non_overlapping_pairs: Пары неперекрывающихся мелодий.
+        :param bool preprocess_data: Флаг для предварительной обработки данных
         """
         super().__init__()
 
         self.overlapping_pairs = overlapping_pairs
         self.non_overlapping_pairs = non_overlapping_pairs
 
-        self.features, self.targets = self._preprocess_data(self.overlapping_pairs, self.non_overlapping_pairs)
+        if preprocess_data:
+            self.features, self.targets = self._preprocess_data(self.overlapping_pairs, self.non_overlapping_pairs)
 
     def __getitem__(self, idx: int) -> tuple[Tensor, Tensor]:
         """Возвращает элемент датасета.
@@ -44,17 +47,20 @@ class OverlapsDataset(Dataset):
         return len(self.overlapping_pairs) + len(self.non_overlapping_pairs)
 
     @classmethod
-    def from_path(cls, dataset_path: str | Path, split: str | None = None) -> 'OverlapsDataset':
+    def from_path(cls, dataset_path: str | Path, split: str | None = None, preprocess_data: bool = True) -> 'OverlapsDataset':
         """Загружает сэмплы из датасета.
 
         :param str | Path dataset_path: Путь к директории с сэмплами
         :param str split: Раздел датасета ('train', 'val', 'test'). Если None, используются все разделы
+        :param bool preprocess_data: Флаг для предварительной обработки данных
         :return OverlapsDataset: Датасет
         """
         dataset_path = Path(dataset_path)
 
         overlaping_pairs = []
         non_overlaping_pairs = []
+
+        melodies_by_dir = {}
 
         if split is not None:
             split_dirs = [dataset_path / split]
@@ -69,16 +75,22 @@ class OverlapsDataset(Dataset):
             for case_dir in split_dir.iterdir():
                 if case_dir.is_dir():
                     midi_files = list(case_dir.glob("*.mid"))
-                    overlaping_pairs.append((midi_files[0], midi_files[1]))
 
-        all_melodies = [midi for pair in overlaping_pairs for midi in pair]
+                    melodies_by_dir[case_dir] = midi_files
 
-        for i, melody1 in enumerate(all_melodies):
-            for melody2 in all_melodies[i+1:]:
-                if melody1.parent != melody2.parent:
-                    non_overlaping_pairs.append((melody1, melody2))
+                    for i, melody1 in enumerate(midi_files):
+                        for melody2 in midi_files[i+1:]:
+                            overlaping_pairs.append((melody1, melody2))
 
-        return cls(overlaping_pairs, non_overlaping_pairs)
+        dirs = list(melodies_by_dir.keys())
+
+        for i, dir1 in enumerate(dirs):
+            for dir2 in dirs[i+1:]:
+                for melody1 in melodies_by_dir[dir1]:
+                    for melody2 in melodies_by_dir[dir2]:
+                        non_overlaping_pairs.append((melody1, melody2))
+
+        return cls(overlaping_pairs, non_overlaping_pairs, preprocess_data)
 
     def _preprocess_data(self, overlapping_pairs: list[tuple[Path, Path]], non_overlapping_pairs: list[tuple[Path, Path]]) -> tuple[np.ndarray, np.ndarray]:
         """Извлекает признаки из пар мелодий и предобрабатывает их.
