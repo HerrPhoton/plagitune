@@ -112,7 +112,7 @@ class MinimizerMelodyMatcher(BaseMelodyMatcher):
         if (abs(interval1) == float('inf') or abs(interval2) == float('inf')):
             return False
 
-        return abs(interval1 - interval2) <= tolerance
+        return abs(abs(interval1) - abs(interval2)) <= tolerance
 
     def _find_similar_minimizers(
         self,

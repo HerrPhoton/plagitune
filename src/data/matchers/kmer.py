@@ -68,7 +68,7 @@ class KMerMelodyMatcher(BaseMelodyMatcher):
         """
         differences = 0
         for a, b in zip(kmer1, kmer2):
-            if abs(a - b) > 1:
+            if abs(abs(a) - abs(b)) > 1:
                 differences += 1
 
         return differences / len(kmer1)

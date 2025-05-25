@@ -12,7 +12,7 @@ class IntervalsMelodyMatcher(BaseMelodyMatcher):
         self.intervals1 = np.array(melody1.get_intervals())
         self.intervals2 = np.array(melody2.get_intervals())
 
-    def find_patterns(self, min_length: int = 7, tolerance: float = 1.0) -> list[MatchedPattern]:
+    def find_patterns(self, min_length: int = 7, tolerance: float = 1) -> list[MatchedPattern]:
         self.matched_patterns = []
 
         for i in range(len(self.intervals1) - min_length + 1):
@@ -41,7 +41,7 @@ class IntervalsMelodyMatcher(BaseMelodyMatcher):
 
         return self.matched_patterns
 
-    def _are_intervals_similar(self, interval1: float, interval2: float, tolerance: float = 1.0) -> bool:
+    def _are_intervals_similar(self, interval1: float, interval2: float, tolerance: float = 1) -> bool:
         """Проверяет, являются ли два интервала похожими.
 
         :param float interval1: Первый интервал
@@ -58,4 +58,4 @@ class IntervalsMelodyMatcher(BaseMelodyMatcher):
         if (abs(interval1) == float('inf') or abs(interval2) == float('inf')):
             return False
 
-        return abs(interval1 - interval2) <= tolerance
+        return abs(abs(interval1) - abs(interval2)) <= tolerance

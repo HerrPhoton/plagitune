@@ -41,30 +41,6 @@ class BaseMelodyMatcher(ABC):
         """
         pass
 
-    def calculate_similarity(self) -> float:
-        """Вычисляет схожесть между двумя мелодиями.
-
-        :return float: Значение схожести от 0 до 1
-        """
-        if not self.matched_patterns:
-            return 0.0
-
-        matched_indices1 = set()
-        matched_indices2 = set()
-
-        for pattern in self.matched_patterns:
-            for idx1, idx2 in pattern.notes_indices:
-                matched_indices1.add(idx1)
-                matched_indices2.add(idx2)
-
-        total_notes1 = len([note for note in self.melody1.notes])
-        total_notes2 = len([note for note in self.melody2.notes])
-
-        match_ratio1 = len(matched_indices1) / total_notes1 if total_notes1 > 0 else 0
-        match_ratio2 = len(matched_indices2) / total_notes2 if total_notes2 > 0 else 0
-
-        return (match_ratio1 + match_ratio2) / 2
-
     def overlaps_levenshtein_distance(self, normalize: bool = False) -> int | float:
         """Вычисляет расстояние Левенштейна между двумя пересекающимися последовательностями.
 

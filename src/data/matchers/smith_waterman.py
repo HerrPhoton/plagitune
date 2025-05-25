@@ -14,12 +14,12 @@ class SmithWatermanMelodyMatcher(BaseMelodyMatcher):
 
     def find_patterns(
         self,
-        min_length: int = 9,
+        min_length: int = 12,
         match_score: int = 2,
         mismatch_score: int = -3,
         gap_penalty: int = -3,
-        tolerance: float = 0.5,
-        threshold_ratio: float = 0.3
+        tolerance: float = 0,
+        threshold_ratio: float = 0.7
     ) -> list[MatchedPattern]:
         """Находит похожие паттерны в мелодиях используя алгоритм Смита-Ватермана.
 
@@ -133,7 +133,7 @@ class SmithWatermanMelodyMatcher(BaseMelodyMatcher):
 
         return self.matched_patterns
 
-    def _are_intervals_similar(self, interval1: float, interval2: float, tolerance: float = 0.5) -> bool:
+    def _are_intervals_similar(self, interval1: float, interval2: float, tolerance: float = 0) -> bool:
         """Проверяет, являются ли два интервала похожими.
 
         :param float interval1: Первый интервал
@@ -150,4 +150,4 @@ class SmithWatermanMelodyMatcher(BaseMelodyMatcher):
         if (abs(interval1) == float('inf') or abs(interval2) == float('inf')):
             return False
 
-        return abs(interval1 - interval2) <= tolerance
+        return abs(abs(interval1) - abs(interval2)) <= tolerance

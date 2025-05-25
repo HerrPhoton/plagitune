@@ -9,6 +9,7 @@ class OverlapsNet(nn.Module):
         super().__init__()
 
         self.model = nn.Sequential(
+            
             nn.Linear(in_features, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
@@ -24,7 +25,12 @@ class OverlapsNet(nn.Module):
             nn.ReLU(),
             nn.Dropout(dropout),
 
-            nn.Linear(32, 1),
+            nn.Linear(32, 16),
+            nn.BatchNorm1d(16),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+
+            nn.Linear(16, 1),
         )
 
     def forward(self, x: Tensor) -> Tensor:

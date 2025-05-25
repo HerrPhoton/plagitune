@@ -1,4 +1,0 @@
-threshold_ratio,min_length,gap_penalty,mismatch_score,match_score,tolerance,auc
-0.3,9,-3,-3,2,1,0.546878306878307
-0.3,9,-3,-3,2,2,0.5496825396825398
-0.3,9,-3,-3,2,3,0.5639285714285713
